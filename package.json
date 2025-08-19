@@ -1,0 +1,21 @@
+{
+	"private": true,
+	"name": "@joshua1/rivet-kit-libs-workspace",
+	"scripts": {
+		"dev": "npx turbo dev",
+		"build": "npx turbo build"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.1.1",
+		"lefthook": "^1.6.12",
+		"semver": "^7.7.1",
+		"tsx": "^4.20.3",
+		"turbo": "^2.0.1",
+		"typescript": "^5.7.3",
+		"vitest": "^3.1.1"
+	},
+	"packageManager": "pnpm@10.14.0",
+	"dependencies": {
+		"linq-extensions": "^1.0.4"
+	}
+}

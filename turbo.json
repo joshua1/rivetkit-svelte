@@ -1,0 +1,52 @@
+{
+	"$schema": "https://turbo.build/schema.json",
+	"tasks": {
+		"//#fmt": {
+			"cache": false
+		},
+		"build": {
+			"dependsOn": [
+				"^build"
+			],
+			"inputs": [
+				"src/**",
+				"tsconfig.json",
+				"tsup.config.ts",
+				"package.json"
+			],
+			"outputs": [
+				"dist/**"
+			]
+		},
+		"check-types": {
+			"inputs": [
+				"src/**",
+				"tests/**",
+				"tsconfig.json",
+				"tsup.config.ts",
+				"package.json"
+			],
+			"dependsOn": [
+				"^build"
+			]
+		},
+		"dev": {
+			"dependsOn": [
+				"^check-types",
+				"check-types",
+				"build"
+			]
+		},
+		"test": {
+			"inputs": [
+				"src/**",
+				"tests/**",
+				"package.json"
+			],
+			"dependsOn": [
+				"^build",
+				"check-types"
+			]
+		}
+	}
+}
