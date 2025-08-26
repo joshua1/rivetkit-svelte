@@ -1,189 +1,337 @@
-# rivetkit-better-auth
+# RivetKit Svelte
 
-Adapter to use [better-auth](https://www.better-auth.com) with [RivetKit](https://rivetkit.com) actors
+A Svelte 5 integration for [RivetKit](https://rivetkit.com) that provides reactive actor connections using Svelte's new runes system.
 
 ## Installation
 
 ```sh
-pnpm add @joshua1/rivetkit-better-auth
+pnpm add @rivetkit/svelte
 
 # or
 
-npm i @joshua1/rivetkit-better-auth
+npm i @rivetkit/svelte
 ```
 
 ## Overview
 
-This adapter provides seamless integration between Better Auth and RivetKit actors, allowing you to use Better Auth's authentication system with RivetKit's actor-based architecture. The adapter handles data operations through RivetKit actors and provides LINQ-style querying capabilities.
+RivetKit Svelte provides seamless integration between RivetKit's actor system and Svelte 5's reactive runes. It allows you to connect to RivetKit actors from your Svelte components with automatic reactivity, real-time event handling, and type safety.
 
 ## Features
 
-- **RivetKit Actor Integration** - Works with RivetKit's actor system
-- **LINQ-Extensions Support** - Advanced querying with LINQ-style operations
+- **Svelte 5 Runes Integration** - Built specifically for Svelte 5's new reactivity system
+- **Real-time Actor Connections** - Connect to RivetKit actors with automatic state synchronization
+- **Event Handling** - Listen to actor events with automatic cleanup
 - **Type Safety** - Full TypeScript support with proper type inference
-- **Flexible Querying** - Support for complex where conditions and operators
-- **Better Auth Compatibility** - Full compatibility with Better Auth's adapter interface
-- **Extensible Actions & State** - Default actions and state can be extended for custom functionality
+- **SSR Compatible** - Works with SvelteKit's server-side rendering
+- **Automatic Reconnection** - Handles connection states and errors gracefully
 
-## Usage
+## Quick Start
 
-### Basic Setup
+### Step 1: Set Up Your RivetKit Backend
 
-First, set up your RivetKit actor using the provided `defaultActions` and `defaultActorState`:
-
-```typescript
-// auth-actor.ts
-import { defineActor } from '@rivetkit/actor'
-import { defaultActions, defaultActorState, tableNames } from '@joshua1/rivetkit-better-auth'
-
-export const authActor = defineActor({
-  name: 'auth',
-  state: defaultActorState,
-  vars: { tableNames },
-  actions: defaultActions
-})
-```
-
-### Create RivetKit Server and Client
+First, create your RivetKit actors and registry. Here's a simple counter example:
 
 ```typescript
-// server.ts
-import { registry } from '@rivetkit/actor'
-import { authActor } from './auth-actor'
+// backend/registry.ts
+import { actor, setup } from "@rivetkit/actor";
 
-const server = registry.createServer({
-  authActor
-})
+export const counter = actor({
+  onAuth: () => {
+    // Configure auth here if needed
+  },
+  state: { count: 0 },
+  actions: {
+    increment: (c, x: number) => {
+      console.log("incrementing by", x);
+      c.state.count += x;
+      c.broadcast("newCount", c.state.count);
+      return c.state.count;
+    },
+    reset: (c) => {
+      c.state.count = 0;
+      c.broadcast("newCount", c.state.count);
+      return c.state.count;
+    },
+  },
+});
 
-const client = server.createClient()
+export const registry = setup({
+  use: { counter },
+});
 ```
 
-### Initialize Better Auth with RivetKit Adapter
+### Step 2: Start Your RivetKit Server
 
 ```typescript
-import { betterAuth } from "better-auth"
-import { rivetKitAdapter } from "@joshua1/rivetkit-better-auth"
-import { client } from "./server"
+// backend/index.ts
+import { registry } from "./registry";
 
-export const auth = betterAuth({
-  database: rivetKitAdapter(client, {
-    debugLogs: true, // optional, for debugging
-    modelNames: ['users', 'sessions'] // optional, specify which models to use
-  }),
-  // ... other Better Auth options
-})
+export type Registry = typeof registry;
+
+registry.runServer({
+  cors: {
+    origin: "http://localhost:5173", // Your Svelte app URL
+  },
+});
 ```
 
-## Configuration Options
+### Step 3: Create the Client Connection
 
-The `rivetKitAdapter` accepts the following parameters:
+In your Svelte app, create a client connection to your RivetKit server:
 
-1. **`actorClient`**: **Required** - The client from `registry.createServer().createClient()`
-2. **`config`**: **Optional** - Configuration object with:
-   - `debugLogs`: **Optional** (default: `false`) - Enable debug logging for adapter operations
-   - `modelNames`: **Optional** (default: all models) - Array of model names to use
+```typescript
+// src/lib/actor-client.ts
+import { createClient, createRivetKit } from "@rivetkit/svelte";
+import type { Registry } from "../../backend";
+
+const client = createClient<Registry>(`http://localhost:8080`);
+export const { useActor } = createRivetKit(client);
+```
+
+### Step 4: Use Actors in Your Svelte Components
+
+Now you can use the `useActor` function in your Svelte 5 components:
+
+```svelte
+<!-- src/routes/+page.svelte -->
+<script lang="ts">
+  import { useActor } from "../lib/actor-client";
+
+  let count = $state(0);
+  const counter = useActor({ name: 'counter', key: ['test-counter'] });
+
+  $effect(() => {
+    console.log('status', counter?.isConnected);
+    counter?.useEvent('newCount', (x: number) => {
+      console.log('new count event', x);
+      count = x;
+    });
+  });
+
+  const increment = () => {
+    counter?.connection?.increment(1);
+  };
+
+  const reset = () => {
+    counter?.connection?.reset();
+  };
+
+  // Debug the connection status
+  $inspect('useActor is connected', counter?.isConnected);
+</script>
+
+<div>
+  <h1>Counter: {count}</h1>
+  <button onclick={increment}>Increment</button>
+  <button onclick={reset}>Reset</button>
+</div>
+```
+
+## Core Concepts
+
+### useActor Hook
+
+The `useActor` function is the main way to connect to RivetKit actors from your Svelte components. It returns a reactive object with the following properties:
+
+- **`connection`** - The actor connection object for calling actions
+- **`handle`** - The actor handle for advanced operations
+- **`isConnected`** - Boolean indicating if the actor is connected
+- **`isConnecting`** - Boolean indicating if the actor is currently connecting
+- **`isError`** - Boolean indicating if there's an error
+- **`error`** - The error object if one exists
+- **`useEvent`** - Function to listen for actor events
+
+### Actor Options
+
+When calling `useActor`, you need to provide:
+
+```typescript
+const actor = useActor({
+  name: 'counter',           // The actor name from your registry
+  key: ['test-counter'],     // Unique key for this actor instance
+  params: { /* ... */ },     // Optional parameters
+  enabled: true              // Optional, defaults to true
+});
+```
+
+## Event Handling
+
+### Using useEvent
+
+The `useEvent` function allows you to listen for events broadcast by actors:
+
+```svelte
+<script lang="ts">
+  import { useActor } from "../lib/actor-client";
+
+  const chatActor = useActor({ name: 'chat', key: ['room-1'] });
+
+  $effect(() => {
+    // Listen for new messages
+    chatActor?.useEvent('newMessage', (message) => {
+      console.log('New message:', message);
+      // Update your component state
+    });
+
+    // Listen for user joined events
+    chatActor?.useEvent('userJoined', (user) => {
+      console.log('User joined:', user);
+    });
+  });
+</script>
+```
+
+### Alternative Event Listening
+
+You can also listen to events directly on the connection:
+
+```svelte
+<script lang="ts">
+  const actor = useActor({ name: 'counter', key: ['test'] });
+
+  $effect(() => {
+    const unsubscribe = actor.connection?.on('newCount', (count) => {
+      console.log('Count updated:', count);
+    });
+
+    // Cleanup is handled automatically by $effect
+    return unsubscribe;
+  });
+</script>
+```
 
 ## Advanced Usage
 
-### Extending Default Actions
+### Conditional Actor Connections
 
-You can extend the default actions with your own custom methods:
+You can conditionally enable/disable actor connections:
 
-```typescript
-import { defineActor } from '@rivetkit/actor'
-import { defaultActions, defaultActorState, tableNames } from '@joshua1/rivetkit-better-auth'
+```svelte
+<script lang="ts">
+  let userId = $state<string | null>(null);
 
-export const authActor = defineActor({
-  name: 'auth',
-  state: defaultActorState,
-  vars: { tableNames },
-  actions: {
-    ...defaultActions,
-    // Add your custom actions
-    customUserSearch: async (c: any, params: { query: string }) => {
-      const users = c.state.users.where((user: any) =>
-        user.name.includes(params.query) || user.email.includes(params.query)
-      ).toArray()
-      return users
-    },
-
-    getUserStats: async (c: any) => {
-      return {
-        totalUsers: c.state.users.length,
-        activeUsers: c.state.users.where((u: any) => u.isActive).count(),
-        totalSessions: c.state.sessions.length
-      }
-    }
-  }
-})
+  const userActor = useActor({
+    name: 'user',
+    key: [userId || 'anonymous'],
+    enabled: userId !== null
+  });
+</script>
 ```
 
-### Extending Default State
+### Multiple Actor Instances
 
-You can also extend the default actor state with additional properties:
+You can connect to multiple instances of the same actor:
 
-```typescript
-import { defaultActorState } from '@joshua1/rivetkit-better-auth'
-
-const extendedState = {
-  ...defaultActorState,
-  // Add custom state properties
-  userPreferences: [] as UserPreference[],
-  auditLogs: [] as AuditLog[]
-}
-
-export const authActor = defineActor({
-  name: 'auth',
-  state: extendedState,
-  vars: { tableNames },
-  actions: {
-    ...defaultActions(),
-    // Custom actions that work with extended state
-    saveUserPreference: async (c: any, params: { userId: string, preference: any }) => {
-      c.state.userPreferences.push({
-        id: crypto.randomUUID(),
-        userId: params.userId,
-        ...params.preference
-      })
-    }
-  }
-})
+```svelte
+<script lang="ts">
+  const chatRoom1 = useActor({ name: 'chat', key: ['room-1'] });
+  const chatRoom2 = useActor({ name: 'chat', key: ['room-2'] });
+  const privateChat = useActor({ name: 'chat', key: ['private', userId] });
+</script>
 ```
 
-### Default Actions Available as per better-auth specs
+### Error Handling
 
-The `defaultActions()` function provides all the necessary methods for Better Auth integration:
+Handle connection errors gracefully:
 
-- `create` - Create new records
-- `findOne` - Find a single record
-- `findMany` - Find multiple records with filtering, sorting, and pagination
-- `update` - Update a single record
-- `updateMany` - Update multiple records
-- `delete` - Delete records
-- `deleteMany` - Delete multiple records
-- `count` - Count records with optional filtering
+```svelte
+<script lang="ts">
+  const actor = useActor({ name: 'counter', key: ['test'] });
 
-### Default State Structure
+  $effect(() => {
+    if (actor?.isError && actor?.error) {
+      console.error('Actor connection error:', actor.error);
+      // Show error message to user
+    }
+  });
+</script>
 
-The `defaultActorState` includes arrays for all Better Auth entities:
-
-```typescript
-export const defaultActorState = {
-  users: [] as User[],
-  sessions: [] as Session[],
-  accounts: [] as Account[],
-  verifications: [] as Verification[],
-  passkeys: [] as Passkey[],
-  organizations: [] as Organization[],
-  members: [] as Member[],
-  invitations: [] as Invitation[],
-  teams: [] as Team[]
-}
+{#if actor?.isError}
+  <div class="error">
+    Connection failed: {actor.error?.message}
+  </div>
+{:else if actor?.isConnecting}
+  <div class="loading">Connecting...</div>
+{:else if actor?.isConnected}
+  <div class="success">Connected!</div>
+{/if}
 ```
 
 ## API Reference
 
-For detailed API documentation, see [LINQ Transform README](./examples/LINQ_TRANSFORM_README.md).
+### createClient(url: string)
+
+Creates a client connection to your RivetKit server.
+
+```typescript
+import { createClient } from "@rivetkit/svelte";
+
+const client = createClient<Registry>("http://localhost:8080");
+```
+
+### createRivetKit(client: Client)
+
+Creates the RivetKit integration with your client.
+
+```typescript
+import { createRivetKit } from "@rivetkit/svelte";
+
+const { useActor } = createRivetKit(client);
+```
+
+### useActor(options: ActorOptions)
+
+Connects to a RivetKit actor and returns reactive state.
+
+**Parameters:**
+- `name: string` - The actor name from your registry
+- `key: string | string[]` - Unique identifier for the actor instance
+- `params?: Record<string, string>` - Optional parameters to pass to the actor
+- `enabled?: boolean` - Whether the connection is enabled (default: true)
+
+**Returns:**
+- `connection` - Actor connection for calling actions
+- `handle` - Actor handle for advanced operations
+- `isConnected` - Connection status
+- `isConnecting` - Loading state
+- `isError` - Error state
+- `error` - Error object
+- `useEvent` - Function to listen for events
+
+## TypeScript Support
+
+RivetKit Svelte provides full TypeScript support. Make sure to type your registry:
+
+```typescript
+// backend/index.ts
+export type Registry = typeof registry;
+
+// frontend/actor-client.ts
+import type { Registry } from "../../backend";
+const client = createClient<Registry>("http://localhost:8080");
+```
+
+## SvelteKit Integration
+
+RivetKit Svelte works seamlessly with SvelteKit. The library automatically detects browser environment and handles SSR appropriately.
+
+```svelte
+<!-- +layout.svelte -->
+<script lang="ts">
+  import { useActor } from "$lib/actor-client";
+
+  // This will only connect in the browser
+  const globalActor = useActor({ name: 'global', key: ['app'] });
+</script>
+```
+
+## Examples
+
+Check out the `examples` folder in this repository for a complete working example with:
+- Backend RivetKit server setup
+- Frontend Svelte integration
+- Real-time counter with events
+- TypeScript configuration
 
 ## Contributing
 

@@ -1,6 +1,7 @@
 {
-	"private": true,
+	"private": false,
 	"name": "@joshua1/rivet-kit-libs-workspace",
+	"version": "0.0.1",
 	"scripts": {
 		"dev": "npx turbo dev",
 		"build": "npx turbo build"
