@@ -1,6 +1,6 @@
 {
 	"name": "@blujosi/rivetkit-svelte",
-	"version": "0.0.6",
+	"version": "0.0.8",
 	"scripts": {
 		"build": "vite build && npm run prepack",
 		"preview": "vite preview",
@@ -30,6 +30,7 @@
 		"svelte": "^5.0.0"
 	},
 	"devDependencies": {
+		"@rivetkit/framework-base": "^2.0.3",
 		"@sveltejs/adapter-auto": "^6.1.0",
 		"@sveltejs/kit": "^2.37.0",
 		"@sveltejs/package": "^2.5.0",
@@ -44,10 +45,8 @@
 		"svelte"
 	],
 	"dependencies": {
-		"@rivetkit/actor": "^2.0.2",
-		"@rivetkit/core": "^2.0.2",
-		"@rivetkit/framework-base": "^2.0.2",
 		"@tanstack/svelte-store": "^0.7.4",
-		"esm-env": "^1.2.2"
+		"esm-env": "^1.2.2",
+		"rivetkit": "^2.0.3"
 	}
 }

@@ -1,5 +1,5 @@
 
-import type { ActorConn, ActorHandle, AnyActorDefinition, Client, ExtractActorsFromRegistry } from "@rivetkit/core/client"
+import type { ActorConn, ActorHandle, AnyActorDefinition, Client, ExtractActorsFromRegistry } from "rivetkit/client"
 import {
 	type ActorOptions,
 	type AnyActorRegistry,
@@ -72,7 +72,7 @@ export interface ActorStateReference<AD extends AnyActorDefinition> {
 
 
 
-export { createClient } from "@rivetkit/core/client"
+export { createClient } from "rivetkit/client"
 
 export function createRivetKit<Registry extends AnyActorRegistry>(
 	client: Client<Registry>,
