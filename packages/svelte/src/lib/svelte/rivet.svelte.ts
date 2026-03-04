@@ -275,10 +275,104 @@ export function createRivetKitWithClient<Registry extends AnyActorRegistry>(
 			}
 		}
 
+		/**
+		 * Creates a reactive query that fetches a value by calling an actor action,
+		 * then re-fetches whenever a specified event fires or the args change.
+		 * Unlike `useQuery`, this does NOT use event data — the event is purely
+		 * an invalidation signal that triggers a fresh action call.
+		 *
+		 * @param queryOpts - Configuration for the action query
+		 * @param queryOpts.action - The action name to call
+		 * @param queryOpts.args - Reactive arguments to pass to the action. When these change, the action is re-called.
+		 * @param queryOpts.event - The event name(s) to listen for as invalidation signals
+		 * @param queryOpts.initialValue - The value to use before the first action resolves
+		 * @returns A reactive object with `.value`, `.isLoading`, `.error`, and `.refetch()` properties
+		 */
+		function useActionQuery<T>(queryOpts: {
+			action: string
+			args?: () => any[]
+			event: string | string[]
+			initialValue: T
+		}) {
+			let value = $state<T>(queryOpts.initialValue)
+			let isLoading = $state(true)
+			let error = $state<Error | null>(null)
+			let fetchVersion = $state(0)
+
+			// Helper to call the action
+			function callAction() {
+				const conn = actorState?.connection
+				if (!conn) return
+
+				const action = (conn as any)[queryOpts.action]
+				if (typeof action !== "function") {
+					error = new Error(
+						`Action '${queryOpts.action}' not found on actor connection`,
+					)
+					isLoading = false
+					return
+				}
+
+				const callArgs = queryOpts.args?.() ?? []
+				isLoading = true
+				Promise.resolve(action.call(conn, ...callArgs))
+					.then((result: T) => {
+						value = result
+						isLoading = false
+						error = null
+					})
+					.catch((err: unknown) => {
+						error =
+							err instanceof Error ? err : new Error(String(err))
+						isLoading = false
+					})
+			}
+
+			// Subscribe to event(s) as invalidation signals — bump version to trigger refetch
+			const events = Array.isArray(queryOpts.event)
+				? queryOpts.event
+				: [queryOpts.event]
+			for (const evt of events) {
+				useEvent(evt, () => {
+					fetchVersion++
+				})
+			}
+
+			// Reactive effect: re-fetches when connection is ready, args change, or event fires
+			$effect(() => {
+				// Read reactive dependencies
+				const _conn = actorState?.connection
+				const _args = queryOpts.args?.()
+				const _version = fetchVersion
+
+				if (!_conn) return
+
+				// Use void to suppress unused-variable warnings while keeping deps tracked
+				void _args
+				void _version
+
+				callAction()
+			})
+
+			return {
+				get value() {
+					return value
+				},
+				get isLoading() {
+					return isLoading
+				},
+				get error() {
+					return error
+				},
+				refetch: callAction,
+			}
+		}
+
 		return {
 			current,
 			useEvent,
 			useQuery,
+			useActionQuery,
 		}
 	}
 

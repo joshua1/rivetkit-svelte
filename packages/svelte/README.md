@@ -127,7 +127,7 @@ export const getRivetClient = () => {
 
 ### 4. Use Actors in Svelte Components
 
-The simplest approach is `useQuery` — it fetches the initial value by calling an action, then subscribes to an event to keep it updated:
+The simplest approach is `useActionQuery` — it fetches the value by calling an action, then re-fetches whenever an event fires:
 
 ```svelte
 <!-- src/routes/+page.svelte -->
@@ -140,14 +140,14 @@ The simplest approach is `useQuery` — it fetches the initial value by calling 
     ? useActor({ name: "counter", key: ["test-counter"] })
     : undefined;
 
-  // useQuery: fetches initial value + subscribes to event updates
-  const count = counterActor?.useQuery({
+  // useActionQuery: fetches value, re-fetches on event
+  const count = counterActor?.useActionQuery({
     action: "getCount",
     event: "newCount",
     initialValue: 0,
   });
 
-  const countDouble = counterActor?.useQuery({
+  const countDouble = counterActor?.useActionQuery({
     action: "getCountDouble",
     event: "newDoubleCount",
     initialValue: 0,
@@ -248,7 +248,8 @@ const actor = useActor({
 | `current.isError` | `boolean` | Whether there's an error |
 | `current.error` | `Error \| null` | The error object, if any |
 | `useEvent(name, handler)` | `function` | Listen for actor events |
-| `useQuery(opts)` | `object` | Reactive query — see below |
+| `useQuery(opts)` | `object` | Reactive query with transform — see below |
+| `useActionQuery(opts)` | `object` | Re-fetch query (event = invalidation signal) — see below |
 
 ### `useEvent(eventName, handler)`
 
@@ -363,6 +364,112 @@ const gameState = gameActor?.useQuery({
 });
 ```
 
+### `useActionQuery(options)`
+
+Creates a reactive query that calls an actor action to fetch data, then **re-calls the same action** whenever one of the specified events fires or the args change. Unlike `useQuery`, event data is ignored — the event is purely an invalidation signal.
+
+This is the recommended approach for most use-cases: simpler, always consistent with server state, and no transform logic to maintain.
+
+**Call at the top level of the component script, not inside `$effect` or `onMount`.**
+
+```typescript
+const count = counterActor?.useActionQuery({
+  action: "getCount",        // Action to call (and re-call)
+  event: "newCount",         // Event(s) that trigger a refetch
+  initialValue: 0,           // Value before the first action resolves
+});
+```
+
+**Options:**
+
+| Option | Type | Description |
+|---|---|---|
+| `action` | `string` | The action name to call |
+| `args` | `() => any[]?` | **Reactive** getter returning arguments. When the return value changes, the action is re-called |
+| `event` | `string \| string[]` | Event name(s) that trigger a refetch |
+| `initialValue` | `T` | The value to use before the first action resolves |
+
+**Returns:**
+
+| Property | Type | Description |
+|---|---|---|
+| `value` | `T` | The current reactive value |
+| `isLoading` | `boolean` | `true` while an action call is in flight |
+| `error` | `Error \| null` | Error from the action call, if any |
+| `refetch()` | `function` | Manually trigger a re-fetch |
+
+**Basic usage:**
+
+```svelte
+<script lang="ts">
+  const count = counterActor?.useActionQuery({
+    action: "getCount",
+    event: "newCount",
+    initialValue: 0,
+  });
+</script>
+
+<p>Count: {count?.value}</p>
+```
+
+**Multiple invalidation events:**
+
+```typescript
+// Re-fetch whenever *any* of these events fire
+const count = counterActor?.useActionQuery({
+  action: "getCount",
+  event: ["newCount", "countReset", "countBatchUpdate"],
+  initialValue: 0,
+});
+```
+
+**Reactive args — re-fetches when args change:**
+
+```svelte
+<script lang="ts">
+  let filter = $state("active");
+  let limit = $state(10);
+
+  const items = counterActor?.useActionQuery({
+    action: "getItems",
+    args: () => [filter, limit],   // re-fetches when filter or limit changes
+    event: "itemsUpdated",
+    initialValue: [],
+  });
+</script>
+
+<select bind:value={filter}>
+  <option value="active">Active</option>
+  <option value="archived">Archived</option>
+</select>
+
+<p>{items?.value.length} items</p>
+```
+
+**Manual refetch:**
+
+```typescript
+const count = counterActor?.useActionQuery({
+  action: "getCount",
+  event: "newCount",
+  initialValue: 0,
+});
+
+// Programmatically re-fetch at any time
+count?.refetch();
+```
+
+**`useActionQuery` vs `useQuery` — when to use which:**
+
+| | `useActionQuery` | `useQuery` |
+|---|---|---|
+| **Event data** | Ignored (just a signal) | Used directly via transform |
+| **On event** | Re-calls the action | Merges event payload into value |
+| **Args** | Reactive (re-fetches on change) | Static |
+| **Transform** | Not needed | Optional (default: shallow merge) |
+| **Best for** | Most use-cases | High-frequency events where refetch would be wasteful |
+| **Refetch** | `.refetch()` available | Not available |
+
 ### SvelteKit Exports (`@blujosi/rivetkit-svelte/sveltekit`)
 
 #### `createRivetKitHandler(opts)`
@@ -423,10 +530,6 @@ await actor?.current?.connection?.increment(1);
 ```
 
 ---
-
-## TODO
-
-- [ ] Figure out using `useActor` and `rivetClient` in SSR mode, maybe using context?
 
 ## License
 
