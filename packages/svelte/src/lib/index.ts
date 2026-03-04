@@ -1,1 +1,2 @@
-export * from "./rivet.svelte.js";
+export * from './svelte'
+export * from './sveltekit'
