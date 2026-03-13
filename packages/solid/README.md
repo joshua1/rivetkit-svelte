@@ -204,13 +204,13 @@ import { query, createAsync } from "@solidjs/router";
 
 const getCounterData = query(async () => {
   "use server";
-  const count = await rivetLoad<number>(rivetClient, {
+  const count = await rivetLoad<number,typeof registry>(rivetClient, {
     actor: "counter",
     key: ["test-counter"],
     action: "getCount",
     event: "newCount",
   });
-  const countDouble = await rivetLoad<number>(rivetClient, {
+  const countDouble = await rivetLoad<number,typeof registry>(rivetClient, {
     actor: "counter",
     key: ["test-counter"],
     action: "getCountDouble",
