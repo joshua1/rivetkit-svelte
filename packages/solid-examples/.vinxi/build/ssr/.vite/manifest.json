@@ -1,0 +1,152 @@
+{
+  "_actor.client-CQZqd8tq.js": {
+    "file": "assets/actor.client-CQZqd8tq.js",
+    "name": "actor.client",
+    "imports": [
+      "_chunk-PRGJ3UM7-Cui1pf_t.js"
+    ]
+  },
+  "_chunk-PRGJ3UM7-Cui1pf_t.js": {
+    "file": "assets/chunk-PRGJ3UM7-Cui1pf_t.js",
+    "name": "chunk-PRGJ3UM7"
+  },
+  "_query-CoyrQWjL.js": {
+    "file": "assets/query-CoyrQWjL.js",
+    "name": "query"
+  },
+  "_registry-C1LwNvWZ.js": {
+    "file": "assets/registry-C1LwNvWZ.js",
+    "name": "registry"
+  },
+  "src/routes/api/rivet/[...rest].ts?pick=DELETE": {
+    "file": "_...rest_.js",
+    "name": "_...rest_",
+    "src": "src/routes/api/rivet/[...rest].ts?pick=DELETE",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-PRGJ3UM7-Cui1pf_t.js",
+      "_registry-C1LwNvWZ.js"
+    ]
+  },
+  "src/routes/api/rivet/[...rest].ts?pick=GET": {
+    "file": "_...rest_2.js",
+    "name": "_...rest_",
+    "src": "src/routes/api/rivet/[...rest].ts?pick=GET",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-PRGJ3UM7-Cui1pf_t.js",
+      "_registry-C1LwNvWZ.js"
+    ]
+  },
+  "src/routes/api/rivet/[...rest].ts?pick=HEAD": {
+    "file": "_...rest_3.js",
+    "name": "_...rest_",
+    "src": "src/routes/api/rivet/[...rest].ts?pick=HEAD",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-PRGJ3UM7-Cui1pf_t.js",
+      "_registry-C1LwNvWZ.js"
+    ]
+  },
+  "src/routes/api/rivet/[...rest].ts?pick=OPTIONS": {
+    "file": "_...rest_4.js",
+    "name": "_...rest_",
+    "src": "src/routes/api/rivet/[...rest].ts?pick=OPTIONS",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-PRGJ3UM7-Cui1pf_t.js",
+      "_registry-C1LwNvWZ.js"
+    ]
+  },
+  "src/routes/api/rivet/[...rest].ts?pick=PATCH": {
+    "file": "_...rest_5.js",
+    "name": "_...rest_",
+    "src": "src/routes/api/rivet/[...rest].ts?pick=PATCH",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-PRGJ3UM7-Cui1pf_t.js",
+      "_registry-C1LwNvWZ.js"
+    ]
+  },
+  "src/routes/api/rivet/[...rest].ts?pick=POST": {
+    "file": "_...rest_6.js",
+    "name": "_...rest_",
+    "src": "src/routes/api/rivet/[...rest].ts?pick=POST",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-PRGJ3UM7-Cui1pf_t.js",
+      "_registry-C1LwNvWZ.js"
+    ]
+  },
+  "src/routes/api/rivet/[...rest].ts?pick=PUT": {
+    "file": "_...rest_7.js",
+    "name": "_...rest_",
+    "src": "src/routes/api/rivet/[...rest].ts?pick=PUT",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-PRGJ3UM7-Cui1pf_t.js",
+      "_registry-C1LwNvWZ.js"
+    ]
+  },
+  "src/routes/index.tsx?pick=default&pick=$css": {
+    "file": "index.js",
+    "name": "index",
+    "src": "src/routes/index.tsx?pick=default&pick=$css",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_actor.client-CQZqd8tq.js",
+      "_chunk-PRGJ3UM7-Cui1pf_t.js"
+    ]
+  },
+  "src/routes/ssr.tsx?pick=default&pick=$css": {
+    "file": "ssr2.js",
+    "name": "ssr",
+    "src": "src/routes/ssr.tsx?pick=default&pick=$css",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_query-CoyrQWjL.js",
+      "_actor.client-CQZqd8tq.js",
+      "_chunk-PRGJ3UM7-Cui1pf_t.js"
+    ]
+  },
+  "virtual:$vinxi/handler/ssr": {
+    "file": "ssr.js",
+    "name": "ssr",
+    "src": "virtual:$vinxi/handler/ssr",
+    "isEntry": true,
+    "imports": [
+      "_query-CoyrQWjL.js",
+      "_chunk-PRGJ3UM7-Cui1pf_t.js",
+      "_actor.client-CQZqd8tq.js"
+    ],
+    "dynamicImports": [
+      "src/routes/api/rivet/[...rest].ts?pick=DELETE",
+      "src/routes/api/rivet/[...rest].ts?pick=DELETE",
+      "src/routes/api/rivet/[...rest].ts?pick=GET",
+      "src/routes/api/rivet/[...rest].ts?pick=GET",
+      "src/routes/api/rivet/[...rest].ts?pick=HEAD",
+      "src/routes/api/rivet/[...rest].ts?pick=HEAD",
+      "src/routes/api/rivet/[...rest].ts?pick=OPTIONS",
+      "src/routes/api/rivet/[...rest].ts?pick=OPTIONS",
+      "src/routes/api/rivet/[...rest].ts?pick=PATCH",
+      "src/routes/api/rivet/[...rest].ts?pick=PATCH",
+      "src/routes/api/rivet/[...rest].ts?pick=POST",
+      "src/routes/api/rivet/[...rest].ts?pick=POST",
+      "src/routes/api/rivet/[...rest].ts?pick=PUT",
+      "src/routes/api/rivet/[...rest].ts?pick=PUT",
+      "src/routes/index.tsx?pick=default&pick=$css",
+      "src/routes/index.tsx?pick=default&pick=$css",
+      "src/routes/ssr.tsx?pick=default&pick=$css",
+      "src/routes/ssr.tsx?pick=default&pick=$css"
+    ]
+  }
+}

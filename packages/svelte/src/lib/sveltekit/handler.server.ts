@@ -1,13 +1,24 @@
-import type { RequestHandler } from "@sveltejs/kit"
+import type { RequestEvent, RequestHandler } from "@sveltejs/kit"
 import type { Registry } from "rivetkit"
 import { getLogger } from "rivetkit/log"
 
 const _devRunnerVersion = Math.floor(Date.now() / 1000)
 const _logger = getLogger("driver-sveltekit")
 
+interface RivetKitHandlerOpts {
+	registry: Registry<any>
+	isDev: boolean
+	rivetSiteUrl?: string
+	/** Static headers added to every request sent to the registry handler */
+	headers?: Record<string, string>
+	/** Dynamic headers resolved per-request. Receives the full SvelteKit RequestEvent. */
+	getHeaders?: (event: RequestEvent) => Record<string, string> | Promise<Record<string, string>>
+}
+
 const handler = async (
 	request: Request,
-	opts?: { registry: Registry<any>; isDev: boolean, rivetSiteUrl?: string },
+	event: RequestEvent,
+	opts?: RivetKitHandlerOpts,
 ) => {
 	const _requestUrl = new URL(request.url)
 
@@ -62,17 +73,29 @@ const handler = async (
 	const newRequest = new Request(newUrl, request)
 	newRequest.headers.set("host", new URL(newUrl).host)
 	newRequest.headers.set("accept-encoding", "application/json")
+
+	// Apply static headers
+	if (opts?.headers) {
+		for (const [key, value] of Object.entries(opts.headers)) {
+			newRequest.headers.set(key, value)
+		}
+	}
+
+	// Apply dynamic per-request headers
+	if (opts?.getHeaders) {
+		const dynamicHeaders = await opts.getHeaders(event)
+		for (const [key, value] of Object.entries(dynamicHeaders)) {
+			newRequest.headers.set(key, value)
+		}
+	}
+
 	return await registry.handler(newRequest)
 	// return fetch(newRequest, { method: request.method, redirect: "manual" })
 }
 
-export const createRivetKitHandler = (opts?: {
-	registry: Registry<any>
-	isDev: boolean,
-	rivetSiteUrl?: string
-}) => {
-	const requestHandler: RequestHandler = async ({ request }) => {
-		return handler(request, opts)
+export const createRivetKitHandler = (opts?: RivetKitHandlerOpts) => {
+	const requestHandler: RequestHandler = async (event) => {
+		return handler(event.request, event, opts)
 	}
 
 	return {

@@ -1,0 +1,9 @@
+{
+	"/": [],
+	"/api/rivet/[...rest]": [
+		"src/routes/api/rivet/[...rest]/+server.ts"
+	],
+	"/ssr": [
+		"src/routes/ssr/+page.ts"
+	]
+}

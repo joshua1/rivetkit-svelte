@@ -1,0 +1,1 @@
+import{c as t}from"./assets/chunk-PRGJ3UM7-Cui1pf_t.js";import{r}from"./assets/registry-C1LwNvWZ.js";import"rivetkit/log";import"solid-js";import"rivetkit";const{GET:s,POST:a,PUT:T,DELETE:l,PATCH:E,HEAD:c,OPTIONS:P}=t({isDev:!1,registry:r,rivetSiteUrl:"http://localhost:3000"});export{l as DELETE,s as GET,c as HEAD,P as OPTIONS,E as PATCH,a as POST,T as PUT};

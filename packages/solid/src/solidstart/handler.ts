@@ -1,0 +1,114 @@
+import type { Registry } from "rivetkit"
+import { getLogger } from "rivetkit/log"
+
+const _devRunnerVersion = Math.floor(Date.now() / 1000)
+const _logger = getLogger("driver-solidstart")
+
+interface RivetKitHandlerOpts {
+	registry: Registry<any>
+	isDev: boolean
+	rivetSiteUrl?: string
+	/** Static headers added to every request sent to the registry handler */
+	headers?: Record<string, string>
+	/** Dynamic headers resolved per-request. Receives the full request. */
+	getHeaders?: (request: Request) => Record<string, string> | Promise<Record<string, string>>
+}
+
+const handler = async (
+	request: Request,
+	opts?: RivetKitHandlerOpts,
+) => {
+	const _requestUrl = new URL(request.url)
+
+	const rivetSiteUrl = opts?.rivetSiteUrl
+
+	if (!rivetSiteUrl) {
+		throw new Error("rivetSiteUrl is required")
+	}
+
+	const registry = opts?.registry
+	if (!registry) {
+		throw new Error("registry is not set")
+	}
+	registry.config.serveManager = false
+
+	registry.config.serverless = {
+		...registry.config.serverless,
+		basePath: "/api/rivet",
+	}
+
+	if (opts?.isDev) {
+		_logger.debug(
+			"detected development environment, auto-starting engine and auto-configuring serverless",
+		)
+
+		registry.config.serverless.spawnEngine = true
+		registry.config.serverless.configureRunnerPool = {
+			url: `${rivetSiteUrl}/api/rivet`,
+			minRunners: 0,
+			maxRunners: 100_000,
+			requestLifespan: 300,
+			slotsPerRunner: 1,
+			metadata: { provider: "solidstart" },
+		}
+
+		registry.config.runner = {
+			...registry.config.runner,
+			version: _devRunnerVersion,
+		}
+	} else {
+		_logger.debug(
+			"detected production environment, will not auto-start engine and auto-configure serverless",
+		)
+	}
+
+	const newUrl = `${rivetSiteUrl}${_requestUrl.pathname}`
+	const newRequest = new Request(newUrl, request)
+	newRequest.headers.set("host", new URL(newUrl).host)
+	newRequest.headers.set("accept-encoding", "application/json")
+
+	// Apply static headers
+	if (opts?.headers) {
+		for (const [key, value] of Object.entries(opts.headers)) {
+			newRequest.headers.set(key, value)
+		}
+	}
+
+	// Apply dynamic per-request headers
+	if (opts?.getHeaders) {
+		const dynamicHeaders = await opts.getHeaders(request)
+		for (const [key, value] of Object.entries(dynamicHeaders)) {
+			newRequest.headers.set(key, value)
+		}
+	}
+
+	return await registry.handler(newRequest)
+}
+
+/**
+ * Creates SolidStart API route handlers for a catch-all route.
+ *
+ * Usage in `src/routes/api/rivet/[...rest].ts`:
+ * ```ts
+ * import { createRivetKitHandler } from "@blujosi/rivetkit-solid/solidstart";
+ * import { registry } from "~/backend/registry";
+ *
+ * export const { GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS } =
+ *   createRivetKitHandler({ isDev: true, registry, rivetSiteUrl: "http://localhost:3000" });
+ * ```
+ */
+export const createRivetKitHandler = (opts?: RivetKitHandlerOpts) => {
+	const requestHandler = async ({ request }: { request: Request }) => {
+		return handler(request, opts)
+	}
+
+	return {
+		GET: requestHandler,
+		POST: requestHandler,
+		PUT: requestHandler,
+		DELETE: requestHandler,
+		PATCH: requestHandler,
+		HEAD: requestHandler,
+		OPTIONS: requestHandler,
+	}
+}

@@ -1,0 +1,57 @@
+{
+  "_actor.client-DkR9QHEz.js": {
+    "file": "assets/actor.client-DkR9QHEz.js",
+    "name": "actor.client",
+    "imports": [
+      "_web-xDTdpy4P.js"
+    ]
+  },
+  "_server-runtime-DAZALyWd.js": {
+    "file": "assets/server-runtime-DAZALyWd.js",
+    "name": "server-runtime",
+    "imports": [
+      "_web-xDTdpy4P.js"
+    ]
+  },
+  "_web-xDTdpy4P.js": {
+    "file": "assets/web-xDTdpy4P.js",
+    "name": "web"
+  },
+  "src/routes/index.tsx?pick=default&pick=$css": {
+    "file": "assets/index-uYaPfIoi.js",
+    "name": "index",
+    "src": "src/routes/index.tsx?pick=default&pick=$css",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_web-xDTdpy4P.js",
+      "_actor.client-DkR9QHEz.js"
+    ]
+  },
+  "src/routes/ssr.tsx?pick=default&pick=$css": {
+    "file": "assets/ssr-DB4-dRQl.js",
+    "name": "ssr",
+    "src": "src/routes/ssr.tsx?pick=default&pick=$css",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_web-xDTdpy4P.js",
+      "_server-runtime-DAZALyWd.js",
+      "_actor.client-DkR9QHEz.js"
+    ]
+  },
+  "virtual:$vinxi/handler/client": {
+    "file": "assets/client-fKVIefv0.js",
+    "name": "client",
+    "src": "virtual:$vinxi/handler/client",
+    "isEntry": true,
+    "imports": [
+      "_web-xDTdpy4P.js",
+      "_server-runtime-DAZALyWd.js"
+    ],
+    "dynamicImports": [
+      "src/routes/index.tsx?pick=default&pick=$css",
+      "src/routes/ssr.tsx?pick=default&pick=$css"
+    ]
+  }
+}

@@ -474,13 +474,254 @@ count?.refetch();
 
 #### `createRivetKitHandler(opts)`
 
-Creates SvelteKit request handlers for all HTTP methods.
+Creates SvelteKit request handlers for all HTTP methods. Every incoming request to the catch-all route is forwarded to the RivetKit registry handler.
 
 ```typescript
 import { createRivetKitHandler } from "@blujosi/rivetkit-svelte/sveltekit";
 
 export const { GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS } =
   createRivetKitHandler({ isDev: true, registry, rivetSiteUrl: "http://localhost:5173" });
+```
+
+**Options:**
+
+| Option | Type | Description |
+|---|---|---|
+| `registry` | `Registry` | Your RivetKit registry instance |
+| `isDev` | `boolean` | Enables auto-engine spawn and runner pool config |
+| `rivetSiteUrl` | `string?` | Base URL for the site. Falls back to `PUBLIC_RIVET_ENDPOINT` env var |
+| `headers` | `Record<string, string>?` | Static headers added to **every** request sent to the registry handler |
+| `getHeaders` | `(event: RequestEvent) => Record<string, string>?` | Dynamic per-request headers. Receives the full SvelteKit `RequestEvent` |
+
+#### Passing Custom Headers (Authentication, JWT Tokens, etc.)
+
+The `headers` and `getHeaders` options let you inject headers into every request forwarded to your RivetKit actors. This is essential for passing JWT tokens, session IDs, or any other authentication data from your SvelteKit application to your actors so they can verify and authorize requests.
+
+Since `getHeaders` receives the full SvelteKit `RequestEvent`, you have access to `locals`, `cookies`, `url`, `params`, and anything else set by your hooks or middleware — making it the ideal place to forward auth context.
+
+**Pass a JWT token from `locals` (set by your auth hook):**
+
+```typescript
+// src/routes/api/rivet/[...rest]/+server.ts
+import { createRivetKitHandler } from "@blujosi/rivetkit-svelte/sveltekit";
+import { dev } from "$app/environment";
+import { registry } from "$backend/registry";
+
+export const { GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS } =
+  createRivetKitHandler({
+    isDev: !!dev,
+    registry,
+    rivetSiteUrl: "http://localhost:5173",
+    // Forward auth token from locals (populated in hooks.server.ts)
+    getHeaders: (event) => ({
+      "x-app-token": event.locals.token ?? "",
+    }),
+  });
+```
+
+Your actors can then read `x-app-token` from the incoming request headers to authenticate and authorize the caller.
+
+**Combine static and dynamic headers:**
+
+```typescript
+createRivetKitHandler({
+  isDev: !!dev,
+  registry,
+  rivetSiteUrl: "http://localhost:5173",
+  // Static headers — same on every request
+  headers: {
+    "x-api-version": "2",
+    "x-app-name": "my-app",
+  },
+  // Dynamic headers — per-request, from SvelteKit locals/cookies
+  getHeaders: (event) => ({
+    "x-app-token": event.locals.token ?? "",
+    "x-user-id": event.locals.user?.id ?? "",
+    "x-session-id": event.cookies.get("session_id") ?? "",
+  }),
+});
+```
+
+Static `headers` are applied first, then `getHeaders` — so dynamic headers can override static ones if they share the same key. Both are set on **every** request that passes through the handler.
+
+---
+
+## SSR → Live Query Transport
+
+`@blujosi/rivetkit-svelte` supports server-side rendering of actor data that seamlessly upgrades to live WebSocket subscriptions on the client — **zero loading flash, instant first paint, then real-time forever.**
+
+This uses SvelteKit's built-in [`transport` hook](https://svelte.dev/docs/kit/hooks#Universal-hooks-transport) to serialize actor query results across the SSR boundary.
+
+### How it works
+
+1. **`rivetLoad()`** in your `+page.ts` load function calls an actor action via stateless HTTP on the server
+2. SvelteKit's `transport` hook serializes the result across the SSR boundary
+3. On the client, `transport.decode` creates a live WebSocket subscription with the SSR data as initial state
+4. On client-side navigation, `rivetLoad()` detects the browser and creates the subscription directly
+5. Events from the actor push updates to the reactive query — no manual refresh needed
+
+### Setup
+
+#### 1. Add the transport hook
+
+```typescript
+// src/hooks.ts
+import { encodeRivetLoad, decodeRivetLoad } from "@blujosi/rivetkit-svelte/sveltekit"
+import { rivetClient } from "$lib/actor.client"
+
+export const transport = {
+  RivetLoadResult: {
+    encode: (value) => encodeRivetLoad(value),
+    decode: (encoded) => decodeRivetLoad(encoded, rivetClient),
+  },
+}
+```
+
+#### 2. Use `rivetLoad()` in your load function
+
+```typescript
+// src/routes/+page.ts
+import { rivetLoad } from "@blujosi/rivetkit-svelte/sveltekit"
+import { rivetClient } from "$lib/actor.client"
+
+export const load = async () => ({
+  count: await rivetLoad(rivetClient, {
+    actor: 'counter',
+    key: ['test-counter'],
+    action: 'getCount',
+    event: 'newCount',
+  })
+})
+```
+
+#### 3. Use the data in your component
+
+```svelte
+<!-- src/routes/+page.svelte -->
+<script lang="ts">
+  let { data } = $props()
+
+  // data.count is already a reactive RivetQueryResult
+  // It has SSR data immediately, then upgrades to live updates
+  const count = $derived(data.count.data)
+</script>
+
+{#if data.count.isLoading}
+  <p>Loading...</p>
+{:else}
+  <h1>Counter: {count}</h1>
+{/if}
+```
+
+That's it. The page renders with SSR data on first paint, SvelteKit preloads on link hover, and then the actor connection keeps data live in real-time.
+
+### `rivetLoad(client, options)`
+
+Fetch actor data for use in SvelteKit load functions. Dual-mode:
+
+- **Server (SSR):** calls the action via stateless HTTP, wraps result for transport
+- **Client (navigation):** calls action for initial data, then creates a live subscription immediately
+
+```typescript
+const result = await rivetLoad(rivetClient, {
+  actor: 'counter',
+  key: ['test-counter'],
+  action: 'getCount',
+  event: 'newCount',
+  args: [],                         // optional action arguments
+  params: { authToken: 'jwt-...' }, // optional connection params
+  transform: (current, incoming) => incoming, // optional transform
+})
+```
+
+**Options:**
+
+| Option | Type | Description |
+|---|---|---|
+| `actor` | `string` | Actor name from your registry |
+| `key` | `string \| string[]` | Unique key for the actor instance |
+| `action` | `string` | Action name to call for the initial value |
+| `event` | `string \| string[]` | Event name(s) to subscribe to for live updates |
+| `args` | `unknown[]?` | Optional arguments passed to the action |
+| `params` | `Record<string, string>?` | Optional connection parameters |
+| `createInRegion` | `string?` | Region to create the actor in |
+| `createWithInput` | `unknown?` | Input data for actor creation |
+| `transform` | `(current: T, incoming: unknown) => T?` | Transform incoming event data. Default: full replacement |
+
+**Returns:** `RivetQueryResult<T>` — a reactive object with:
+
+| Property | Type | Description |
+|---|---|---|
+| `data` | `T \| undefined` | The current value |
+| `isLoading` | `boolean` | `true` while loading |
+| `error` | `Error \| undefined` | Error, if any |
+| `isConnected` | `boolean` | Whether the live connection is active |
+
+### `encodeRivetLoad(value)` / `decodeRivetLoad(encoded, client, transform?)`
+
+Transport encode/decode functions for `src/hooks.ts`. Wire them into SvelteKit's `transport` hook to enable SSR → live query upgrade.
+
+```typescript
+// src/hooks.ts
+import { encodeRivetLoad, decodeRivetLoad } from "@blujosi/rivetkit-svelte/sveltekit"
+import { rivetClient } from "$lib/actor.client"
+
+export const transport = {
+  RivetLoadResult: {
+    encode: (value) => encodeRivetLoad(value),
+    decode: (encoded) => decodeRivetLoad(encoded, rivetClient),
+  },
+}
+```
+
+> **Note:** `decodeRivetLoad` accepts an optional third argument `transform` if you need to customize how event data is applied. By default, incoming event data fully replaces the current value.
+
+### Multiple queries in one load
+
+```typescript
+// src/routes/+page.ts
+export const load = async () => ({
+  count: await rivetLoad(rivetClient, {
+    actor: 'counter',
+    key: ['test-counter'],
+    action: 'getCount',
+    event: 'newCount',
+  }),
+  countDouble: await rivetLoad(rivetClient, {
+    actor: 'counter',
+    key: ['test-counter'],
+    action: 'getCountDouble',
+    event: 'newDoubleCount',
+  }),
+})
+```
+
+### Using with `useActor` for mutations
+
+SSR data gives you read access. For mutations (calling actions that change state), combine with `useActor`:
+
+```svelte
+<script lang="ts">
+  import { useActor } from "$lib";
+
+  let { data } = $props();
+
+  // Read: SSR data with live updates
+  const count = $derived(data.count.data);
+
+  // Write: useActor for action calls
+  const counterActor = useActor?.({
+    name: "counter",
+    key: ["test-counter"],
+  });
+
+  const increment = async () => {
+    await counterActor?.current?.connection?.increment(1);
+  };
+</script>
+
+<h1>Counter: {count}</h1>
+<button onclick={increment}>Increment</button>
 ```
 
 ---

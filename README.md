@@ -98,26 +98,26 @@ Now you can use the `useActor` function in your Svelte 5 components:
   import { useActor } from "../lib/actor-client";
 
   let count = $state(0);
-  const counter = useActor({ name: 'counter', key: ['test-counter'] });
+  const { current, useEvent } = useActor({ name: 'counter', key: ['test-counter'] });
 
   $effect(() => {
-    console.log('status', counter?.isConnected);
-    counter?.useEvent('newCount', (x: number) => {
+    console.log('status', current.isConnected);
+    useEvent('newCount', (x: number) => {
       console.log('new count event', x);
       count = x;
     });
   });
 
   const increment = () => {
-    counter?.connection?.increment(1);
+    current?.connection?.increment(1);
   };
 
   const reset = () => {
-    counter?.connection?.reset();
+    current?.connection?.reset();
   };
 
   // Debug the connection status
-  $inspect('useActor is connected', counter?.isConnected);
+  $inspect('useActor is connected', current?.isConnected);
 </script>
 
 <div>
@@ -131,22 +131,25 @@ Now you can use the `useActor` function in your Svelte 5 components:
 
 ### useActor Hook
 
-The `useActor` function is the main way to connect to RivetKit actors from your Svelte components. It returns a reactive object with the following properties:
+The `useActor` function is the main way to connect to RivetKit actors from your Svelte components. It returns an object with two properties:
 
+- **`current`** - An object containing all the reactive state and connection properties
+- **`useEvent`** - A function to listen for actor events
+
+The `current` object contains:
 - **`connection`** - The actor connection object for calling actions
 - **`handle`** - The actor handle for advanced operations
 - **`isConnected`** - Boolean indicating if the actor is connected
 - **`isConnecting`** - Boolean indicating if the actor is currently connecting
 - **`isError`** - Boolean indicating if there's an error
 - **`error`** - The error object if one exists
-- **`useEvent`** - Function to listen for actor events
 
 ### Actor Options
 
 When calling `useActor`, you need to provide:
 
 ```typescript
-const actor = useActor({
+const { current, useEvent } = useActor({
   name: 'counter',           // The actor name from your registry
   key: ['test-counter'],     // Unique key for this actor instance
   params: { /* ... */ },     // Optional parameters
@@ -164,17 +167,17 @@ The `useEvent` function allows you to listen for events broadcast by actors:
 <script lang="ts">
   import { useActor } from "../lib/actor-client";
 
-  const chatActor = useActor({ name: 'chat', key: ['room-1'] });
+  const { current: chatActor, useEvent } = useActor({ name: 'chat', key: ['room-1'] });
 
   $effect(() => {
     // Listen for new messages
-    chatActor?.useEvent('newMessage', (message) => {
+    useEvent('newMessage', (message) => {
       console.log('New message:', message);
       // Update your component state
     });
 
     // Listen for user joined events
-    chatActor?.useEvent('userJoined', (user) => {
+    useEvent('userJoined', (user) => {
       console.log('User joined:', user);
     });
   });
@@ -187,10 +190,10 @@ You can also listen to events directly on the connection:
 
 ```svelte
 <script lang="ts">
-  const actor = useActor({ name: 'counter', key: ['test'] });
+  const { current } = useActor({ name: 'counter', key: ['test'] });
 
   $effect(() => {
-    const unsubscribe = actor.connection?.on('newCount', (count) => {
+    const unsubscribe = current?.connection?.on('newCount', (count) => {
       console.log('Count updated:', count);
     });
 
@@ -210,7 +213,7 @@ You can conditionally enable/disable actor connections:
 <script lang="ts">
   let userId = $state<string | null>(null);
 
-  const userActor = useActor({
+  const { current: userActor } = useActor({
     name: 'user',
     key: [userId || 'anonymous'],
     enabled: userId !== null
@@ -224,9 +227,9 @@ You can connect to multiple instances of the same actor:
 
 ```svelte
 <script lang="ts">
-  const chatRoom1 = useActor({ name: 'chat', key: ['room-1'] });
-  const chatRoom2 = useActor({ name: 'chat', key: ['room-2'] });
-  const privateChat = useActor({ name: 'chat', key: ['private', userId] });
+  const { current: chatRoom1 } = useActor({ name: 'chat', key: ['room-1'] });
+  const { current: chatRoom2 } = useActor({ name: 'chat', key: ['room-2'] });
+  const { current: privateChat } = useActor({ name: 'chat', key: ['private', userId] });
 </script>
 ```
 
@@ -236,23 +239,23 @@ Handle connection errors gracefully:
 
 ```svelte
 <script lang="ts">
-  const actor = useActor({ name: 'counter', key: ['test'] });
+  const { current } = useActor({ name: 'counter', key: ['test'] });
 
   $effect(() => {
-    if (actor?.isError && actor?.error) {
-      console.error('Actor connection error:', actor.error);
+    if (current?.isError && current?.error) {
+      console.error('Actor connection error:', current.error);
       // Show error message to user
     }
   });
 </script>
 
-{#if actor?.isError}
+{#if current?.isError}
   <div class="error">
-    Connection failed: {actor.error?.message}
+    Connection failed: {current.error?.message}
   </div>
-{:else if actor?.isConnecting}
+{:else if current?.isConnecting}
   <div class="loading">Connecting...</div>
-{:else if actor?.isConnected}
+{:else if current?.isConnected}
   <div class="success">Connected!</div>
 {/if}
 ```
@@ -281,7 +284,7 @@ const { useActor } = createRivetKit(client);
 
 ### useActor(options: ActorOptions)
 
-Connects to a RivetKit actor and returns reactive state.
+Connects to a RivetKit actor and returns an object with reactive state and event handling.
 
 **Parameters:**
 - `name: string` - The actor name from your registry
@@ -289,13 +292,14 @@ Connects to a RivetKit actor and returns reactive state.
 - `params?: Record<string, string>` - Optional parameters to pass to the actor
 - `enabled?: boolean` - Whether the connection is enabled (default: true)
 
-**Returns:**
-- `connection` - Actor connection for calling actions
-- `handle` - Actor handle for advanced operations
-- `isConnected` - Connection status
-- `isConnecting` - Loading state
-- `isError` - Error state
-- `error` - Error object
+**Returns an object with:**
+- `current` - Object containing:
+  - `connection` - Actor connection for calling actions
+  - `handle` - Actor handle for advanced operations
+  - `isConnected` - Connection status
+  - `isConnecting` - Loading state
+  - `isError` - Error state
+  - `error` - Error object
 - `useEvent` - Function to listen for events
 
 ## TypeScript Support
@@ -321,7 +325,7 @@ RivetKit Svelte works seamlessly with SvelteKit. The library automatically detec
   import { useActor } from "$lib/actor-client";
 
   // This will only connect in the browser
-  const globalActor = useActor({ name: 'global', key: ['app'] });
+  const { current: globalActor } = useActor({ name: 'global', key: ['app'] });
 </script>
 ```
 
