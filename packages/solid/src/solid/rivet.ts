@@ -18,6 +18,7 @@ import {
 	createSignal,
 	onCleanup,
 } from "solid-js"
+import { useRivet } from "./context"
 
 export interface ActorStateReference<AD extends AnyActorDefinition> {
 	hash: string
@@ -309,4 +310,34 @@ export function createRivetKitWithClient<Registry extends AnyActorRegistry>(
 	return {
 		useActor,
 	}
+}
+
+// ============================================================================
+// Context-aware useActor — uses client from RivetProvider
+// ============================================================================
+
+/**
+ * Context-aware useActor that pulls the client from `<RivetProvider>`.
+ *
+ * Must be called inside a component wrapped in `<RivetProvider>`.
+ * This is the recommended approach — no need to manually create a client
+ * or call `createRivetKitWithClient`.
+ *
+ * ```tsx
+ * function Counter() {
+ *   const actor = useActorFromContext({
+ *     name: "counter",
+ *     key: ["test-counter"],
+ *   });
+ *   // actor.current.connection, actor.useActionQuery, etc.
+ * }
+ * ```
+ */
+export function useActorFromContext<
+	Registry extends AnyActorRegistry = AnyActorRegistry,
+	ActorName extends keyof ExtractActorsFromRegistry<Registry> = keyof ExtractActorsFromRegistry<Registry>,
+>(opts: ActorOptions<Registry, ActorName>) {
+	const { client } = useRivet<Registry>()
+	const { useActor } = createRivetKitWithClient<Registry>(client)
+	return useActor<ActorName>(opts)
 }

@@ -1,32 +1,37 @@
 {
-  "_actor.client-CQZqd8tq.js": {
-    "file": "assets/actor.client-CQZqd8tq.js",
-    "name": "actor.client",
+  "_auth-BxWnXXi5.js": {
+    "file": "assets/auth-BxWnXXi5.js",
+    "name": "auth"
+  },
+  "_auth-client-soFIT0rW.js": {
+    "file": "assets/auth-client-soFIT0rW.js",
+    "name": "auth-client"
+  },
+  "_chunk-ACNSKN6D-CWv6jrK3.js": {
+    "file": "assets/chunk-ACNSKN6D-CWv6jrK3.js",
+    "name": "chunk-ACNSKN6D"
+  },
+  "_chunk-UFMCWDHH-DWEZyrAY.js": {
+    "file": "assets/chunk-UFMCWDHH-DWEZyrAY.js",
+    "name": "chunk-UFMCWDHH",
     "imports": [
-      "_chunk-PRGJ3UM7-Cui1pf_t.js"
+      "_chunk-ACNSKN6D-CWv6jrK3.js"
     ]
   },
-  "_chunk-PRGJ3UM7-Cui1pf_t.js": {
-    "file": "assets/chunk-PRGJ3UM7-Cui1pf_t.js",
-    "name": "chunk-PRGJ3UM7"
-  },
-  "_query-BjTKLNTp.js": {
-    "file": "assets/query-BjTKLNTp.js",
-    "name": "query"
-  },
-  "_registry-C1LwNvWZ.js": {
-    "file": "assets/registry-C1LwNvWZ.js",
+  "_registry-Tw_eAXpK.js": {
+    "file": "assets/registry-Tw_eAXpK.js",
     "name": "registry"
   },
-  "_server-fns-v6xn5QIo.js": {
-    "file": "assets/server-fns-v6xn5QIo.js",
+  "_server-fns-xgF3ZN0E.js": {
+    "file": "assets/server-fns-xgF3ZN0E.js",
     "name": "server-fns",
-    "imports": [
-      "_query-BjTKLNTp.js",
-      "_chunk-PRGJ3UM7-Cui1pf_t.js",
-      "_actor.client-CQZqd8tq.js"
-    ],
     "dynamicImports": [
+      "src/routes/api/auth/[...all].ts?pick=GET",
+      "src/routes/api/auth/[...all].ts?pick=GET",
+      "src/routes/api/auth/[...all].ts?pick=GET",
+      "src/routes/api/auth/[...all].ts?pick=GET",
+      "src/routes/api/auth/[...all].ts?pick=POST",
+      "src/routes/api/auth/[...all].ts?pick=POST",
       "src/routes/api/rivet/[...rest].ts?pick=DELETE",
       "src/routes/api/rivet/[...rest].ts?pick=DELETE",
       "src/routes/api/rivet/[...rest].ts?pick=GET",
@@ -41,24 +46,48 @@
       "src/routes/api/rivet/[...rest].ts?pick=POST",
       "src/routes/api/rivet/[...rest].ts?pick=PUT",
       "src/routes/api/rivet/[...rest].ts?pick=PUT",
+      "src/routes/api/token.ts?pick=GET",
+      "src/routes/api/token.ts?pick=GET",
+      "src/routes/api/token.ts?pick=GET",
+      "src/routes/api/token.ts?pick=GET",
+      "src/routes/auth.tsx?pick=default&pick=$css",
+      "src/routes/auth.tsx?pick=default&pick=$css",
       "src/routes/index.tsx?pick=default&pick=$css",
       "src/routes/index.tsx?pick=default&pick=$css",
       "src/routes/ssr.tsx?pick=default&pick=$css",
       "src/routes/ssr.tsx?pick=default&pick=$css",
-      "src/routes/ssr.tsx?pick=route&tsr-directive-use-server=",
       "src/app.tsx"
     ]
   },
   "src/app.tsx": {
-    "file": "assets/app-PN6qWyv6.js",
+    "file": "assets/app-De9iMQfE.js",
     "name": "app",
     "src": "src/app.tsx",
     "isDynamicEntry": true,
     "imports": [
-      "_server-fns-v6xn5QIo.js",
-      "_query-BjTKLNTp.js",
-      "_chunk-PRGJ3UM7-Cui1pf_t.js",
-      "_actor.client-CQZqd8tq.js"
+      "_server-fns-xgF3ZN0E.js",
+      "_chunk-UFMCWDHH-DWEZyrAY.js",
+      "_chunk-ACNSKN6D-CWv6jrK3.js"
+    ]
+  },
+  "src/routes/api/auth/[...all].ts?pick=GET": {
+    "file": "_...all_.js",
+    "name": "_...all_",
+    "src": "src/routes/api/auth/[...all].ts?pick=GET",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_auth-BxWnXXi5.js"
+    ]
+  },
+  "src/routes/api/auth/[...all].ts?pick=POST": {
+    "file": "_...all_2.js",
+    "name": "_...all_",
+    "src": "src/routes/api/auth/[...all].ts?pick=POST",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_auth-BxWnXXi5.js"
     ]
   },
   "src/routes/api/rivet/[...rest].ts?pick=DELETE": {
@@ -68,8 +97,8 @@
     "isEntry": true,
     "isDynamicEntry": true,
     "imports": [
-      "_chunk-PRGJ3UM7-Cui1pf_t.js",
-      "_registry-C1LwNvWZ.js"
+      "_chunk-ACNSKN6D-CWv6jrK3.js",
+      "_registry-Tw_eAXpK.js"
     ]
   },
   "src/routes/api/rivet/[...rest].ts?pick=GET": {
@@ -79,8 +108,8 @@
     "isEntry": true,
     "isDynamicEntry": true,
     "imports": [
-      "_chunk-PRGJ3UM7-Cui1pf_t.js",
-      "_registry-C1LwNvWZ.js"
+      "_chunk-ACNSKN6D-CWv6jrK3.js",
+      "_registry-Tw_eAXpK.js"
     ]
   },
   "src/routes/api/rivet/[...rest].ts?pick=HEAD": {
@@ -90,8 +119,8 @@
     "isEntry": true,
     "isDynamicEntry": true,
     "imports": [
-      "_chunk-PRGJ3UM7-Cui1pf_t.js",
-      "_registry-C1LwNvWZ.js"
+      "_chunk-ACNSKN6D-CWv6jrK3.js",
+      "_registry-Tw_eAXpK.js"
     ]
   },
   "src/routes/api/rivet/[...rest].ts?pick=OPTIONS": {
@@ -101,8 +130,8 @@
     "isEntry": true,
     "isDynamicEntry": true,
     "imports": [
-      "_chunk-PRGJ3UM7-Cui1pf_t.js",
-      "_registry-C1LwNvWZ.js"
+      "_chunk-ACNSKN6D-CWv6jrK3.js",
+      "_registry-Tw_eAXpK.js"
     ]
   },
   "src/routes/api/rivet/[...rest].ts?pick=PATCH": {
@@ -112,8 +141,8 @@
     "isEntry": true,
     "isDynamicEntry": true,
     "imports": [
-      "_chunk-PRGJ3UM7-Cui1pf_t.js",
-      "_registry-C1LwNvWZ.js"
+      "_chunk-ACNSKN6D-CWv6jrK3.js",
+      "_registry-Tw_eAXpK.js"
     ]
   },
   "src/routes/api/rivet/[...rest].ts?pick=POST": {
@@ -123,8 +152,8 @@
     "isEntry": true,
     "isDynamicEntry": true,
     "imports": [
-      "_chunk-PRGJ3UM7-Cui1pf_t.js",
-      "_registry-C1LwNvWZ.js"
+      "_chunk-ACNSKN6D-CWv6jrK3.js",
+      "_registry-Tw_eAXpK.js"
     ]
   },
   "src/routes/api/rivet/[...rest].ts?pick=PUT": {
@@ -134,8 +163,28 @@
     "isEntry": true,
     "isDynamicEntry": true,
     "imports": [
-      "_chunk-PRGJ3UM7-Cui1pf_t.js",
-      "_registry-C1LwNvWZ.js"
+      "_chunk-ACNSKN6D-CWv6jrK3.js",
+      "_registry-Tw_eAXpK.js"
+    ]
+  },
+  "src/routes/api/token.ts?pick=GET": {
+    "file": "token.js",
+    "name": "token",
+    "src": "src/routes/api/token.ts?pick=GET",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_auth-BxWnXXi5.js"
+    ]
+  },
+  "src/routes/auth.tsx?pick=default&pick=$css": {
+    "file": "auth.js",
+    "name": "auth",
+    "src": "src/routes/auth.tsx?pick=default&pick=$css",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_auth-client-soFIT0rW.js"
     ]
   },
   "src/routes/index.tsx?pick=default&pick=$css": {
@@ -145,8 +194,9 @@
     "isEntry": true,
     "isDynamicEntry": true,
     "imports": [
-      "_actor.client-CQZqd8tq.js",
-      "_chunk-PRGJ3UM7-Cui1pf_t.js"
+      "_chunk-UFMCWDHH-DWEZyrAY.js",
+      "_chunk-ACNSKN6D-CWv6jrK3.js",
+      "_auth-client-soFIT0rW.js"
     ]
   },
   "src/routes/ssr.tsx?pick=default&pick=$css": {
@@ -156,20 +206,9 @@
     "isEntry": true,
     "isDynamicEntry": true,
     "imports": [
-      "_query-BjTKLNTp.js",
-      "_actor.client-CQZqd8tq.js",
-      "_chunk-PRGJ3UM7-Cui1pf_t.js"
-    ]
-  },
-  "src/routes/ssr.tsx?pick=route&tsr-directive-use-server=": {
-    "file": "assets/ssr-GlLJj5UT.js",
-    "name": "ssr",
-    "src": "src/routes/ssr.tsx?pick=route&tsr-directive-use-server=",
-    "isDynamicEntry": true,
-    "imports": [
-      "_query-BjTKLNTp.js",
-      "_chunk-PRGJ3UM7-Cui1pf_t.js",
-      "_actor.client-CQZqd8tq.js"
+      "_chunk-ACNSKN6D-CWv6jrK3.js",
+      "_chunk-UFMCWDHH-DWEZyrAY.js",
+      "_auth-client-soFIT0rW.js"
     ]
   },
   "virtual:$vinxi/handler/server-fns": {
@@ -178,10 +217,7 @@
     "src": "virtual:$vinxi/handler/server-fns",
     "isEntry": true,
     "imports": [
-      "_server-fns-v6xn5QIo.js",
-      "_query-BjTKLNTp.js",
-      "_chunk-PRGJ3UM7-Cui1pf_t.js",
-      "_actor.client-CQZqd8tq.js"
+      "_server-fns-xgF3ZN0E.js"
     ]
   }
 }

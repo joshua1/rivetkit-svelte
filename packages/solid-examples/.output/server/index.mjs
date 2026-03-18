@@ -1,6 +1,7 @@
 import process from 'node:process';globalThis._importMeta_={url:import.meta.url,env:process.env};import 'node:http';
 import 'node:https';
-export { l as default } from './chunks/nitro/nitro.mjs';
+export { c as default } from './chunks/nitro/nitro.mjs';
+import 'solid-js';
 import 'node:events';
 import 'node:buffer';
 import 'node:fs';
@@ -10,7 +11,6 @@ import 'node:async_hooks';
 import 'vinxi/lib/invariant';
 import 'vinxi/lib/path';
 import 'node:url';
-import 'solid-js';
 import 'solid-js/web';
 import 'solid-js/web/storage';
 import 'rivetkit/log';

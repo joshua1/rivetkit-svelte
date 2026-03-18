@@ -1,6 +1,6 @@
 # @blujosi/rivetkit-solid
 
-A SolidJS integration for [RivetKit](https://rivet.dev) that provides reactive actor connections using SolidJS signals, plus a built-in SolidStart handler for serverless deployment and an SSR transport for server-loaded live queries.
+A SolidJS integration for [RivetKit](https://rivet.dev) that provides reactive actor connections using SolidJS signals, a Provider/Context architecture for SSR-safe client injection, and a SolidStart handler for serverless deployment.
 
 ## Installation
 
@@ -16,26 +16,27 @@ npm i @blujosi/rivetkit-solid rivetkit
 
 `@blujosi/rivetkit-solid` provides three main pieces:
 
-1. **SolidJS client** (`@blujosi/rivetkit-solid`) — `useActor` hook for reactive actor connections with real-time events
+1. **SolidJS client** (`@blujosi/rivetkit-solid`) — `RivetProvider`, `useActorFromContext`, and `useActor` hook for reactive actor connections with real-time events
 2. **SolidStart handler** (`@blujosi/rivetkit-solid/solidstart`) — `createRivetKitHandler` to serve RivetKit as a SolidStart API route
-3. **SSR transport** (`@blujosi/rivetkit-solid/solidstart`) — `rivetLoad` for server-fetched data that upgrades to live subscriptions on the client
+3. **SSR transport** (`@blujosi/rivetkit-solid/solidstart`) — `useRivetQuery` for server-fetched data that upgrades to live subscriptions on the client
 
 ## Features
 
-- **SolidJS Signals** — Built on `createSignal`, `createEffect`, and getter-based reactivity
+- **Provider + Context** — SSR-safe client injection via `<RivetProvider>`, no module-level singletons
+- **SolidJS Signals** — Built on `createSignal`, `createEffect`, `createResource`, and getter-based reactivity
 - **Real-time Actor Connections** — Connect to RivetKit actors with automatic state sync via WebSocket
-- **Event Handling** — `useEvent` with automatic cleanup
+- **SSR → Live Upgrade** — `useRivetQuery` uses `createResource` for automatic SSR serialization, then upgrades to live WebSocket on the client
+- **Event Handling** — `useEvent` with automatic cleanup via `onCleanup`
 - **Type Safety** — Full TypeScript support with registry type inference
-- **SSR → Live Upgrade** — `rivetLoad` fetches data server-side, then upgrades to live subscriptions on the client
 - **SolidStart Handler** — Run RivetKit serverless inside your SolidStart app
 
 ## Package Entry Points
 
 | Import path | Purpose |
 |---|---|
-| `@blujosi/rivetkit-solid` | Client-side: `createClient`, `createRivetKit`, `createRivetKitWithClient` |
+| `@blujosi/rivetkit-solid` | Client-side: `RivetProvider`, `useRivet`, `useActorFromContext`, `createClient`, `createRivetKit`, `createRivetKitWithClient` |
 | `@blujosi/rivetkit-solid/solid` | SolidJS-specific: full client exports (re-exported from main) |
-| `@blujosi/rivetkit-solid/solidstart` | Server + SSR: `createRivetKitHandler`, `rivetLoad`, `encodeRivetLoad`, `decodeRivetLoad` |
+| `@blujosi/rivetkit-solid/solidstart` | Server + SSR: `createRivetKitHandler`, `useRivetQuery`, `createRivetQuery` |
 
 ---
 
@@ -96,11 +97,6 @@ export const { GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS } =
   });
 ```
 
-The handler automatically:
-- Spawns the RivetKit engine in dev mode
-- Configures the serverless runner pool
-- Proxies requests to the registry's built-in handler
-
 #### Handler Options
 
 | Option | Type | Description |
@@ -111,14 +107,11 @@ The handler automatically:
 | `headers` | `Record<string, string>?` | Static headers added to every request |
 | `getHeaders` | `(request: Request) => Record<string, string>?` | Dynamic per-request headers |
 
-### 3. Create the Client
+### 3. Create the Client & Wrap with Provider
 
 ```typescript
 // src/lib/actor.client.ts
-import {
-  createClient,
-  createRivetKitWithClient,
-} from "@blujosi/rivetkit-solid";
+import { createClient } from "@blujosi/rivetkit-solid";
 import type { Client } from "rivetkit/client";
 import type { Registry } from "~backend/registry";
 
@@ -129,36 +122,46 @@ const endpoint = IS_BROWSER
   : "http://localhost:3000/api/rivet";
 
 export const rivetClient: Client<Registry> = createClient<Registry>(endpoint);
+```
 
-const { useActor } = createRivetKitWithClient(rivetClient);
-export { useActor };
+Then wrap your app with `<RivetProvider>`:
+
+```tsx
+// src/app.tsx
+import { Router } from "@solidjs/router";
+import { FileRoutes } from "@solidjs/start/router";
+import { RivetProvider } from "@blujosi/rivetkit-solid";
+import { rivetClient } from "~/lib/actor.client";
+
+export default function App() {
+  return (
+    <RivetProvider client={rivetClient}>
+      <Router root={(props) => <>{props.children}</>}>
+        <FileRoutes />
+      </Router>
+    </RivetProvider>
+  );
+}
 ```
 
 ### 4. Use Actors in Components (Client-Side)
 
-The simplest approach is `useActionQuery` — it fetches the value by calling an action, then re-fetches whenever an event fires:
+Use `useActorFromContext` — it pulls the client from the provider automatically:
 
 ```tsx
 // src/routes/index.tsx
-import { useActor } from "~/lib";
+import { useActorFromContext } from "@blujosi/rivetkit-solid";
 import { Show } from "solid-js";
 
 export default function Home() {
-  const counterActor = useActor?.({
+  const counterActor = useActorFromContext({
     name: "counter",
     key: ["test-counter"],
   });
 
-  // useActionQuery: fetches value via action, re-fetches on event trigger
   const countQuery = counterActor?.useActionQuery({
     action: "getCount",
     event: "newCount",
-    initialValue: 0,
-  });
-
-  const countDoubleQuery = counterActor?.useActionQuery({
-    action: "getCountDouble",
-    event: "newDoubleCount",
     initialValue: 0,
   });
 
@@ -168,22 +171,16 @@ export default function Home() {
   const reset = async () => {
     await counterActor?.current?.connection?.reset();
   };
-  const doubleCountClick = async () => {
-    await counterActor?.current?.connection?.doubleIncrement(2);
-  };
 
   return (
     <Show
-      when={!countQuery?.isLoading && !countDoubleQuery?.isLoading}
+      when={!countQuery?.isLoading}
       fallback={<p>Loading...</p>}
     >
       <div>
         <h1>Counter: {countQuery?.value}</h1>
         <button onClick={increment}>Increment</button>
         <button onClick={reset}>Reset</button>
-
-        <h1>Counter 2: {countDoubleQuery?.value}</h1>
-        <button onClick={doubleCountClick}>Double Count</button>
       </div>
     </Show>
   );
@@ -192,48 +189,35 @@ export default function Home() {
 
 ### 5. SSR with Live Upgrade
 
-Use `rivetLoad` to fetch actor data server-side, then automatically upgrade to a live WebSocket subscription on the client:
+Use `useRivetQuery` to fetch actor data server-side and automatically upgrade to live WebSocket subscriptions on the client:
 
 ```tsx
 // src/routes/ssr.tsx
-import { useActor } from "~/lib";
-import { Show, Suspense } from "solid-js";
-import { rivetLoad } from "@blujosi/rivetkit-solid/solidstart";
-import { rivetClient } from "~/lib/actor.client";
-import { query, createAsync } from "@solidjs/router";
+import { Suspense } from "solid-js";
+import { useRivetQuery } from "@blujosi/rivetkit-solid/solidstart";
+import { useActorFromContext } from "@blujosi/rivetkit-solid";
 
-const getCounterData = query(async () => {
-  "use server";
-  const count = await rivetLoad<number,typeof registry>(rivetClient, {
+export default function SSRPage() {
+  // SSR queries — data fetched server-side, auto-upgraded to live on client
+  const count = useRivetQuery<number>({
     actor: "counter",
     key: ["test-counter"],
     action: "getCount",
     event: "newCount",
   });
-  const countDouble = await rivetLoad<number,typeof registry>(rivetClient, {
+
+  const countDouble = useRivetQuery<number>({
     actor: "counter",
     key: ["test-counter"],
     action: "getCountDouble",
     event: "newDoubleCount",
   });
-  return { count, countDouble };
-}, "counter-data");
 
-export const route = {
-  preload: () => getCounterData(),
-};
-
-export default function SSRPage() {
-  const data = createAsync(() => getCounterData());
-
-  // useActor is still needed for calling actions (mutations)
-  const counterActor = useActor?.({
+  // Actor connection for calling mutations
+  const counterActor = useActorFromContext({
     name: "counter",
     key: ["test-counter"],
   });
-
-  const countValue = () => data()?.count?.data();
-  const countDoubleValue = () => data()?.countDouble?.data();
 
   const increment = async () => {
     await counterActor?.current?.connection?.increment(1);
@@ -246,17 +230,13 @@ export default function SSRPage() {
     <div>
       <h2>SSR + Live Counter Demo</h2>
       <Suspense fallback={<p>Loading...</p>}>
-        <Show when={data()}>
-          {(d) => (
-            <div>
-              <h1>Counter: {countValue()}</h1>
-              <button onClick={increment}>Increment</button>
-              <button onClick={reset}>Reset</button>
+        <div>
+          <h1>Counter: {count.data()}</h1>
+          <button onClick={increment}>Increment</button>
+          <button onClick={reset}>Reset</button>
 
-              <h1>Counter 2: {countDoubleValue()}</h1>
-            </div>
-          )}
-        </Show>
+          <h1>Counter 2: {countDouble.data()}</h1>
+        </div>
       </Suspense>
     </div>
   );
@@ -264,13 +244,56 @@ export default function SSRPage() {
 ```
 
 **How SSR → Live works:**
-1. On the **server**, `rivetLoad` calls the action via stateless HTTP and returns the data for SSR
-2. On the **client** (hydration or navigation), it creates a live WebSocket subscription that keeps the data updating in real-time
-3. The returned `RivetQueryResult<T>` exposes reactive accessors (`data()`, `isLoading()`, `error()`, `isConnected()`)
+1. On the **server**, `useRivetQuery` uses `createResource` to call the action — SolidStart serializes the result automatically
+2. On the **client** (hydration), a `createEffect` waits for the resource to resolve, then creates a live WebSocket subscription
+3. `onCleanup` disconnects the WebSocket and unsubscribes events when the component unmounts
+4. The returned `RivetQueryResult<T>` exposes reactive accessors (`data()`, `isLoading()`, `error()`, `isConnected()`, `refetch()`)
 
 ---
 
 ## API Reference
+
+### Provider & Context (`@blujosi/rivetkit-solid`)
+
+#### `<RivetProvider client={client}>`
+
+Provides the RivetKit client to all descendant components via SolidJS context. Required for `useActorFromContext` and `useRivetQuery`.
+
+```tsx
+import { RivetProvider } from "@blujosi/rivetkit-solid";
+
+<RivetProvider client={rivetClient}>
+  {/* All children can use useActorFromContext and useRivetQuery */}
+</RivetProvider>
+```
+
+| Prop | Type | Description |
+|---|---|---|
+| `client` | `Client<any>` | The RivetKit client instance |
+
+#### `useRivet<Registry>()`
+
+Returns the RivetKit context value (`{ client }`). Throws if called outside a `<RivetProvider>`.
+
+```typescript
+import { useRivet } from "@blujosi/rivetkit-solid";
+const { client } = useRivet<Registry>();
+```
+
+#### `useActorFromContext(options)`
+
+Connects to a RivetKit actor using the client from `<RivetProvider>`. Returns the same API as `useActor`.
+
+```typescript
+import { useActorFromContext } from "@blujosi/rivetkit-solid";
+
+const actor = useActorFromContext({
+  name: "counter",
+  key: ["test-counter"],
+});
+```
+
+---
 
 ### Client Exports (`@blujosi/rivetkit-solid`)
 
@@ -294,7 +317,7 @@ export const { useActor } = createRivetKit<Registry>("http://localhost:3000/api/
 
 #### `createRivetKitWithClient<Registry>(client, opts?)`
 
-Creates the `useActor` hook from an existing client instance. Use this when you need access to the client elsewhere (e.g. for `rivetLoad`).
+Creates the `useActor` hook from an existing client instance.
 
 ```typescript
 import { createClient, createRivetKitWithClient } from "@blujosi/rivetkit-solid";
@@ -353,10 +376,9 @@ Creates a reactive query that fetches an initial value by calling an actor actio
 
 ```typescript
 const count = counterActor?.useQuery({
-  action: "getCount",        // Action to call for the initial value
-  event: "newCount",         // Event to subscribe to for updates
-  initialValue: 0,           // Value before the action resolves
-  args: [],                  // Optional arguments to pass to the action
+  action: "getCount",
+  event: "newCount",
+  initialValue: 0,
 });
 ```
 
@@ -444,17 +466,18 @@ export const { GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS } =
 
 ---
 
-#### `rivetLoad<T>(client, opts)`
+#### `useRivetQuery<T>(options)` *(recommended)*
 
-Fetches actor data for use in SolidStart route data functions. Returns a `RivetQueryResult<T>` with reactive signal accessors.
+Fetches actor data with SSR support and automatic live upgrade. Uses `createResource` for SSR serialization and `createEffect` + `onCleanup` for live WebSocket upgrade. Must be called inside a component wrapped in `<RivetProvider>`.
 
-```typescript
-const count = await rivetLoad<number>(rivetClient, {
+```tsx
+import { useRivetQuery } from "@blujosi/rivetkit-solid/solidstart";
+
+const count = useRivetQuery<number>({
   actor: "counter",
   key: ["test-counter"],
   action: "getCount",
   event: "newCount",
-  params: { token: "abc123" },  // Optional connection params
 });
 
 // Access values via signal accessors
@@ -462,9 +485,25 @@ count.data()         // number | undefined
 count.isLoading()    // boolean
 count.error()        // Error | undefined
 count.isConnected()  // boolean
+count.refetch()      // manually re-fetch
 ```
 
-**Options (`RivetLoadOptions<T>`):**
+#### `createRivetQuery<T>(client, options)`
+
+Same as `useRivetQuery` but takes an explicit client — doesn't require `<RivetProvider>`.
+
+```tsx
+import { createRivetQuery } from "@blujosi/rivetkit-solid/solidstart";
+
+const count = createRivetQuery<number>(myClient, {
+  actor: "counter",
+  key: ["test-counter"],
+  action: "getCount",
+  event: "newCount",
+});
+```
+
+**Options (`RivetQueryOptions<T>`):**
 
 | Option | Type | Description |
 |---|---|---|
@@ -482,37 +521,28 @@ count.isConnected()  // boolean
 
 | Accessor | Type | Description |
 |---|---|---|
-| `data()` | `T \| undefined` | The current value |
-| `isLoading()` | `boolean` | Whether data is being loaded |
-| `error()` | `Error \| undefined` | Any error that occurred |
+| `data()` | `T \| undefined` | The current value (live data preferred over initial fetch) |
+| `isLoading()` | `boolean` | Whether the initial resource is loading |
+| `error()` | `Error \| undefined` | Any error from fetch or WebSocket |
 | `isConnected()` | `boolean` | Whether the live WebSocket is connected |
-
----
-
-#### `encodeRivetLoad(value)`
-
-Encodes a `RivetLoadResult` for serialization across the SSR boundary. Returns a plain object or `false` if the value isn't a RivetLoadResult.
-
-#### `decodeRivetLoad<Registry>(encoded, client, transform?)`
-
-Decodes a serialized `RivetLoadResult` into a live actor subscription on the client side.
+| `refetch()` | `void` | Manually re-fetch the action value |
 
 ---
 
 ## Connection Parameters
 
-You can pass `params` when connecting to actors — both via `useActor` and `rivetLoad`. These are `Record<string, string>` values sent with the connection handshake, typically used for authentication:
+You can pass `params` when connecting to actors — both via `useActorFromContext` and `useRivetQuery`. These are `Record<string, string>` values sent with the connection handshake, typically used for authentication:
 
 ```typescript
-// Client-side via useActor
-const actor = useActor({
+// Client-side via useActorFromContext
+const actor = useActorFromContext({
   name: "counter",
   key: ["test-counter"],
   params: { token: "user-auth-token" },
 });
 
-// SSR via rivetLoad
-const data = await rivetLoad<number>(rivetClient, {
+// SSR via useRivetQuery
+const count = useRivetQuery<number>({
   actor: "counter",
   key: ["test-counter"],
   action: "getCount",
@@ -535,7 +565,6 @@ export const counter = actor({
 
   actions: {
     getCount: (c) => {
-      // Access params on the connection
       const token = c.conn.params.token;
       return c.state.count;
     },
@@ -554,17 +583,17 @@ A typical SolidStart + RivetKit project looks like this:
 │   └── registry.ts          # Actor definitions & registry
 ├── src/
 │   ├── lib/
-│   │   ├── actor.client.ts  # RivetKit client + useActor export
+│   │   ├── actor.client.ts  # RivetKit client export
 │   │   └── index.ts         # Re-exports
 │   ├── routes/
-│   │   ├── index.tsx         # Client-side page
-│   │   ├── ssr.tsx           # SSR page with rivetLoad
+│   │   ├── index.tsx         # Client-side page (useActorFromContext)
+│   │   ├── ssr.tsx           # SSR page with useRivetQuery
 │   │   └── api/
 │   │       └── rivet/
 │   │           └── [...rest].ts  # Catch-all RivetKit handler
 │   ├── entry-client.tsx
 │   ├── entry-server.tsx
-│   └── app.tsx
+│   └── app.tsx               # <RivetProvider> wraps the Router
 ├── app.config.ts             # SolidStart config
 ├── package.json
 └── tsconfig.json

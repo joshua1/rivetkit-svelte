@@ -1,2 +1,2 @@
-export { RivetLoadResult, createRivetKitHandler, decodeRivetLoad, encodeRivetLoad, rivetLoad } from '../chunk-PRGJ3UM7.js';
-import '../chunk-JSBRDJBE.js';
+export { RivetLoadResult, createRivetKitHandler, createRivetQuery, decodeRivetLoad, encodeRivetLoad, rivetLoad, useRivetQuery } from '../chunk-MMM5GSLZ.js';
+import '../chunk-UB7CV4PH.js';

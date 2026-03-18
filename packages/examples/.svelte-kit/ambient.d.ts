@@ -41,7 +41,6 @@ declare module '$env/static/private' {
 	export const CPLUS_INCLUDE_PATH: string;
 	export const NVM_INC: string;
 	export const STARSHIP_SHELL: string;
-	export const COREPACK_ROOT: string;
 	export const TERM_PROGRAM: string;
 	export const NODE: string;
 	export const NVM_CD_FLAGS: string;
@@ -60,7 +59,6 @@ declare module '$env/static/private' {
 	export const npm_config_registry: string;
 	export const LC_ALL: string;
 	export const PNPM_HOME: string;
-	export const GIT_EDITOR: string;
 	export const USER: string;
 	export const NVM_DIR: string;
 	export const COMMAND_MODE: string;
@@ -80,7 +78,6 @@ declare module '$env/static/private' {
 	export const __CFBundleIdentifier: string;
 	export const C_INCLUDE_PATH: string;
 	export const USER_ZDOTDIR: string;
-	export const COREPACK_ENABLE_DOWNLOAD_PROMPT: string;
 	export const PWD: string;
 	export const npm_command: string;
 	export const EDITOR: string;
@@ -93,7 +90,7 @@ declare module '$env/static/private' {
 	export const XPC_FLAGS: string;
 	export const VSCODE_GIT_ASKPASS_EXTRA_ARGS: string;
 	export const BUN_INSPECT_CONNECT_TO: string;
-	export const GIT_MERGE_AUTOEDIT: string;
+	export const npm_config_manage_package_manager_versions: string;
 	export const npm_config_node_gyp: string;
 	export const XPC_SERVICE_NAME: string;
 	export const npm_package_version: string;
@@ -115,7 +112,6 @@ declare module '$env/static/private' {
 	export const GIT_ASKPASS: string;
 	export const VSCODE_GIT_ASKPASS_NODE: string;
 	export const OSLogRateLimit: string;
-	export const GIT_PAGER: string;
 	export const FLYCTL_INSTALL: string;
 	export const COLORTERM: string;
 	export const npm_node_execpath: string;
@@ -208,7 +204,6 @@ declare module '$env/dynamic/private' {
 		CPLUS_INCLUDE_PATH: string;
 		NVM_INC: string;
 		STARSHIP_SHELL: string;
-		COREPACK_ROOT: string;
 		TERM_PROGRAM: string;
 		NODE: string;
 		NVM_CD_FLAGS: string;
@@ -227,7 +222,6 @@ declare module '$env/dynamic/private' {
 		npm_config_registry: string;
 		LC_ALL: string;
 		PNPM_HOME: string;
-		GIT_EDITOR: string;
 		USER: string;
 		NVM_DIR: string;
 		COMMAND_MODE: string;
@@ -247,7 +241,6 @@ declare module '$env/dynamic/private' {
 		__CFBundleIdentifier: string;
 		C_INCLUDE_PATH: string;
 		USER_ZDOTDIR: string;
-		COREPACK_ENABLE_DOWNLOAD_PROMPT: string;
 		PWD: string;
 		npm_command: string;
 		EDITOR: string;
@@ -260,7 +253,7 @@ declare module '$env/dynamic/private' {
 		XPC_FLAGS: string;
 		VSCODE_GIT_ASKPASS_EXTRA_ARGS: string;
 		BUN_INSPECT_CONNECT_TO: string;
-		GIT_MERGE_AUTOEDIT: string;
+		npm_config_manage_package_manager_versions: string;
 		npm_config_node_gyp: string;
 		XPC_SERVICE_NAME: string;
 		npm_package_version: string;
@@ -282,7 +275,6 @@ declare module '$env/dynamic/private' {
 		GIT_ASKPASS: string;
 		VSCODE_GIT_ASKPASS_NODE: string;
 		OSLogRateLimit: string;
-		GIT_PAGER: string;
 		FLYCTL_INSTALL: string;
 		COLORTERM: string;
 		npm_node_execpath: string;

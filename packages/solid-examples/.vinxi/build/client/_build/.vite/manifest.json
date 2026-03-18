@@ -1,55 +1,68 @@
 {
-  "_actor.client-DkR9QHEz.js": {
-    "file": "assets/actor.client-DkR9QHEz.js",
-    "name": "actor.client",
+  "_auth-client--KWWk1vB.js": {
+    "file": "assets/auth-client--KWWk1vB.js",
+    "name": "auth-client",
     "imports": [
-      "_web-xDTdpy4P.js"
+      "_web-BFfPZmCU.js"
     ]
   },
-  "_server-runtime-DAZALyWd.js": {
-    "file": "assets/server-runtime-DAZALyWd.js",
-    "name": "server-runtime",
+  "_chunk-ACNSKN6D-CtZbuKrs.js": {
+    "file": "assets/chunk-ACNSKN6D-CtZbuKrs.js",
+    "name": "chunk-ACNSKN6D",
     "imports": [
-      "_web-xDTdpy4P.js"
+      "_web-BFfPZmCU.js"
     ]
   },
-  "_web-xDTdpy4P.js": {
-    "file": "assets/web-xDTdpy4P.js",
+  "_web-BFfPZmCU.js": {
+    "file": "assets/web-BFfPZmCU.js",
     "name": "web"
   },
+  "src/routes/auth.tsx?pick=default&pick=$css": {
+    "file": "assets/auth-BLguUpMG.js",
+    "name": "auth",
+    "src": "src/routes/auth.tsx?pick=default&pick=$css",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_web-BFfPZmCU.js",
+      "_auth-client--KWWk1vB.js"
+    ]
+  },
   "src/routes/index.tsx?pick=default&pick=$css": {
-    "file": "assets/index-uYaPfIoi.js",
+    "file": "assets/index-D58nVcFf.js",
     "name": "index",
     "src": "src/routes/index.tsx?pick=default&pick=$css",
     "isEntry": true,
     "isDynamicEntry": true,
     "imports": [
-      "_web-xDTdpy4P.js",
-      "_actor.client-DkR9QHEz.js"
+      "_web-BFfPZmCU.js",
+      "_chunk-ACNSKN6D-CtZbuKrs.js",
+      "_auth-client--KWWk1vB.js"
     ]
   },
   "src/routes/ssr.tsx?pick=default&pick=$css": {
-    "file": "assets/ssr-DB4-dRQl.js",
+    "file": "assets/ssr-gMV1DFTc.js",
     "name": "ssr",
     "src": "src/routes/ssr.tsx?pick=default&pick=$css",
     "isEntry": true,
     "isDynamicEntry": true,
     "imports": [
-      "_web-xDTdpy4P.js",
-      "_server-runtime-DAZALyWd.js",
-      "_actor.client-DkR9QHEz.js"
+      "_web-BFfPZmCU.js",
+      "_chunk-ACNSKN6D-CtZbuKrs.js",
+      "_auth-client--KWWk1vB.js"
     ]
   },
   "virtual:$vinxi/handler/client": {
-    "file": "assets/client-fKVIefv0.js",
+    "file": "assets/client-CxpZaY5m.js",
     "name": "client",
     "src": "virtual:$vinxi/handler/client",
     "isEntry": true,
     "imports": [
-      "_web-xDTdpy4P.js",
-      "_server-runtime-DAZALyWd.js"
+      "_web-BFfPZmCU.js",
+      "_chunk-ACNSKN6D-CtZbuKrs.js"
     ],
     "dynamicImports": [
+      "src/routes/auth.tsx?pick=default&pick=$css",
       "src/routes/index.tsx?pick=default&pick=$css",
       "src/routes/ssr.tsx?pick=default&pick=$css"
     ]

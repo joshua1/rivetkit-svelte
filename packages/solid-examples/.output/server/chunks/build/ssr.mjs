@@ -1,84 +1,47 @@
-import { ssr, ssrHydrationKey, escape, createComponent, isServer } from 'solid-js/web';
-import { b as bt, a as an, e as en, q, v as vt } from '../nitro/nitro.mjs';
-import { Suspense, Show, createResource, catchError, untrack, sharedConfig } from 'solid-js';
-import 'node:http';
-import 'node:https';
-import 'node:events';
-import 'node:buffer';
-import 'node:fs';
-import 'node:path';
-import 'node:crypto';
-import 'node:async_hooks';
-import 'vinxi/lib/invariant';
-import 'vinxi/lib/path';
-import 'node:url';
-import 'solid-js/web/storage';
+import { ssr, ssrHydrationKey, escape, createComponent } from 'solid-js/web';
+import { createSignal, createEffect, Show, Suspense } from 'solid-js';
+import { a as ae } from './chunk-ACNSKN6D-CWv6jrK3.mjs';
+import { a as at } from './chunk-UFMCWDHH-DWEZyrAY.mjs';
+import { a } from './auth-client-soFIT0rW.mjs';
 import 'rivetkit/log';
-import 'rivetkit/client';
+import 'better-auth/solid';
 
-function S(r, e) {
-  let n, o = () => !n || n.state === "unresolved" ? void 0 : n.latest;
-  [n] = createResource(() => $(r, catchError(() => untrack(o), () => {
-  })), (p) => p, e);
-  const u = () => n();
-  return Object.defineProperty(u, "latest", { get() {
-    return n.latest;
-  } }), u;
-}
-class t {
-  static all() {
-    return new t();
-  }
-  static allSettled() {
-    return new t();
-  }
-  static any() {
-    return new t();
-  }
-  static race() {
-    return new t();
-  }
-  static reject() {
-    return new t();
-  }
-  static resolve() {
-    return new t();
-  }
-  catch() {
-    return new t();
-  }
-  then() {
-    return new t();
-  }
-  finally() {
-    return new t();
-  }
-}
-function $(r, e) {
-  if (isServer || !sharedConfig.context) return r(e);
-  const n = fetch, o = Promise;
-  try {
-    return window.fetch = () => new t(), Promise = t, r(e);
-  } finally {
-    window.fetch = n, Promise = o;
-  }
-}
-var x = ["<div", "><h2>SSR + Live Counter Demo</h2><p><em>Initial data loaded server-side, then upgraded to live subscriptions.</em></p><!--$-->", "<!--/--></div>"], R = ["<p", ">Loading...</p>"], j = ["<div", "><h1>Counter: <!--$-->", "<!--/--></h1><button>Increment</button><button>Reset</button><h1>Counter 2: <!--$-->", "<!--/--></h1><button>Double Count</button></div>"];
-const L = en(async () => {
-  const r = await q(vt, { actor: "counter", key: ["test-counter"], action: "getCount", event: "newCount" }), e = await q(vt, { actor: "counter", key: ["test-counter"], action: "getCountDouble", event: "newDoubleCount" });
-  return { count: r, countDouble: e };
-}, "src_routes_ssr_tsx--getCounterData_cache", "/Users/josi/Documents/ShiftLabs/Projects/rivetkit-svelte/packages/solid-examples/src/routes/ssr.tsx?pick=default&pick=%24css&tsr-directive-use-server="), A = an(L, "counter-data");
-function B() {
-  var _a;
-  const r = S(() => A());
-  return (_a = bt) == null ? void 0 : _a({ name: "counter", key: ["test-counter"] }), ssr(x, ssrHydrationKey(), escape(createComponent(Suspense, { get fallback() {
-    return ssr(R, ssrHydrationKey());
+var h = ["<p", ">Loading session...</p>"], b = ["<p", '><a href="/auth">Sign in</a> to access your personal counter.</p>'], k = ["<p", ">Signed in as <strong>", "</strong></p>"], f = ["<div", "><h2>SSR + Live Counter Demo</h2><p><em>Initial data loaded via createResource, then upgraded to live subscriptions.</em></p><!--$-->", "<!--/--><!--$-->", "<!--/--><!--$-->", "<!--/--></div>"], C = ["<div", "><h1>Counter: <!--$-->", '<!--/--></h1><button type="button">Increment</button><button type="button">Reset</button><h1>Counter 2: <!--$-->', '<!--/--></h1><button type="button">Double Count</button></div>'], S = ["<p", ">Loading counter...</p>"];
+function L() {
+  const t = a.useSession(), [s, r] = createSignal(null);
+  return createEffect(() => {
+    var _a;
+    ((_a = t()) == null ? void 0 : _a.data) ? fetch("/api/token", { credentials: "include" }).then((u) => u.ok ? u.json() : null).then((u) => (u == null ? void 0 : u.token) && r(u.token)).catch(() => r(null)) : r(null);
+  }), ssr(f, ssrHydrationKey(), escape(createComponent(Show, { get when() {
+    var _a;
+    return (_a = t()) == null ? void 0 : _a.isPending;
   }, get children() {
-    return createComponent(Show, { get when() {
-      return r();
-    }, children: (e) => ssr(j, ssrHydrationKey(), escape(e().count.data()), escape(e().countDouble.data())) });
+    return ssr(h, ssrHydrationKey());
+  } })), escape(createComponent(Show, { get when() {
+    var _a, _b;
+    return !((_a = t()) == null ? void 0 : _a.isPending) && !((_b = t()) == null ? void 0 : _b.data);
+  }, get children() {
+    return ssr(b, ssrHydrationKey());
+  } })), escape(createComponent(Show, { get when() {
+    var _a;
+    return ((_a = t()) == null ? void 0 : _a.data) && s();
+  }, get children() {
+    var _a, _b;
+    return [ssr(k, ssrHydrationKey(), escape((_b = (_a = t()) == null ? void 0 : _a.data) == null ? void 0 : _b.user.email)), createComponent(v, { get userId() {
+      return t().data.user.id;
+    }, get token() {
+      return s();
+    } })];
   } })));
 }
+function v(t) {
+  const s = ae({ actor: "counter", key: ["user-counter", t.userId], action: "getCount", event: "newCount", params: { token: t.token } }), r = ae({ actor: "counter", key: ["user-counter", t.userId], action: "getCountDouble", event: "newDoubleCount", params: { token: t.token } });
+  return at({ name: "counter", key: ["user-counter", t.userId], params: { token: t.token } }), createComponent(Suspense, { get fallback() {
+    return ssr(S, ssrHydrationKey());
+  }, get children() {
+    return ssr(C, ssrHydrationKey(), escape(s.data()), escape(r.data()));
+  } });
+}
 
-export { B as default };
+export { L as default };
 //# sourceMappingURL=ssr.mjs.map

@@ -9,8 +9,11 @@ interface RivetKitHandlerOpts {
     rivetSiteUrl?: string;
     /** Static headers added to every request sent to the registry handler */
     headers?: Record<string, string>;
-    /** Dynamic headers resolved per-request. Receives the full request. */
-    getHeaders?: (request: Request) => Record<string, string> | Promise<Record<string, string>>;
+    /** Dynamic headers resolved per-request. Receives the full event. */
+    getHeaders?: (event: {
+        request: Request;
+        locals: any;
+    }) => Record<string, string> | Promise<Record<string, string>>;
 }
 /**
  * Creates SolidStart API route handlers for a catch-all route.
@@ -25,45 +28,61 @@ interface RivetKitHandlerOpts {
  * ```
  */
 declare const createRivetKitHandler: (opts?: RivetKitHandlerOpts) => {
-    GET: ({ request }: {
+    GET: (event: {
         request: Request;
+        locals: any;
     }) => Promise<Response>;
-    POST: ({ request }: {
+    POST: (event: {
         request: Request;
+        locals: any;
     }) => Promise<Response>;
-    PUT: ({ request }: {
+    PUT: (event: {
         request: Request;
+        locals: any;
     }) => Promise<Response>;
-    DELETE: ({ request }: {
+    DELETE: (event: {
         request: Request;
+        locals: any;
     }) => Promise<Response>;
-    PATCH: ({ request }: {
+    PATCH: (event: {
         request: Request;
+        locals: any;
     }) => Promise<Response>;
-    HEAD: ({ request }: {
+    HEAD: (event: {
         request: Request;
+        locals: any;
     }) => Promise<Response>;
-    OPTIONS: ({ request }: {
+    OPTIONS: (event: {
         request: Request;
+        locals: any;
     }) => Promise<Response>;
 };
 
 /**
- * SSR bridge — rivetLoad() for SolidStart.
+ * SSR bridge — useRivetQuery() for SolidStart.
  *
- * On the server, rivetLoad fetches via a stateless RivetKit action call.
+ * On the server, useRivetQuery uses createResource to fetch data via a stateless
+ * RivetKit action call. SolidStart serializes the resource automatically.
  * On the client, it upgrades to a live actor subscription via WebSocket.
- * On client-side navigation, rivetLoad creates a live subscription directly.
+ *
+ * This module uses SolidJS context via RivetProvider — all signals are created
+ * within the component ownership tree, ensuring proper disposal and cleanup.
  */
 
-/** Reactive query result returned by rivetLoad. */
+/** Reactive query result returned by useRivetQuery. */
 interface RivetQueryResult<T = unknown> {
+    /** The current value. On SSR this is the server-fetched value; on client it upgrades to live. */
     readonly data: Accessor<T | undefined>;
+    /** Whether the initial data is being loaded. */
     readonly isLoading: Accessor<boolean>;
+    /** Any error from the action call or connection. */
     readonly error: Accessor<Error | undefined>;
+    /** Whether the live WebSocket connection is active (always false on server). */
     readonly isConnected: Accessor<boolean>;
+    /** Manually refetch the action value. */
+    readonly refetch: () => void;
 }
-interface RivetLoadOptions<T = unknown> {
+interface RivetQueryOptions<T = unknown> {
     /** Actor name from the registry (e.g. 'counter'). */
     actor: string;
     /** Unique key for the actor instance. */
@@ -83,7 +102,42 @@ interface RivetLoadOptions<T = unknown> {
     /** Transform incoming event data into the new value. Default: full replacement. */
     transform?: (current: T, incoming: unknown) => T;
 }
-/** Marker class for serialization recognition. */
+/**
+ * Fetch actor data with SSR support and automatic live upgrade.
+ *
+ * Uses SolidJS `createResource` for SSR serialization, then upgrades to a
+ * live WebSocket subscription on the client. Must be called inside a
+ * component wrapped in `<RivetProvider>`.
+ *
+ * ```tsx
+ * function SSRPage() {
+ *   const count = useRivetQuery<number>({
+ *     actor: "counter",
+ *     key: ["test-counter"],
+ *     action: "getCount",
+ *     event: "newCount",
+ *   });
+ *
+ *   return <h1>Counter: {count.data()}</h1>;
+ * }
+ * ```
+ */
+declare function useRivetQuery<T = unknown>(opts: RivetQueryOptions<T>): RivetQueryResult<T>;
+/**
+ * Fetch actor data with SSR support using an explicit client reference.
+ *
+ * Same as `useRivetQuery` but doesn't require `<RivetProvider>` — you pass
+ * the client directly. Useful when the client is available but you
+ * haven't set up a provider.
+ *
+ * Must still be called inside a component (for signal ownership).
+ */
+declare function createRivetQuery<T = unknown>(client: Client<any>, opts: RivetQueryOptions<T>): RivetQueryResult<T>;
+/** @deprecated Use `RivetQueryOptions` instead. */
+type RivetLoadOptions<T = unknown> = RivetQueryOptions<T>;
+/** @deprecated Use `useRivetQuery` or `createRivetQuery` instead. */
+declare function rivetLoad<T = unknown, Registry extends AnyActorRegistry = AnyActorRegistry>(client: Client<Registry>, opts: RivetQueryOptions<T>): Promise<RivetQueryResult<T>>;
+/** @deprecated No longer needed with the Provider-based approach. */
 declare class RivetLoadResult<T = unknown> {
     readonly actorName: string;
     readonly key: string | string[];
@@ -97,49 +151,9 @@ declare class RivetLoadResult<T = unknown> {
     readonly __rivetLoad = true;
     constructor(actorName: string, key: string | string[], action: string, args: unknown[], event: string | string[], data: T, params?: Record<string, string> | undefined, createInRegion?: string | undefined, createWithInput?: unknown | undefined);
 }
-interface RivetLoadEncoded {
-    actorName: string;
-    key: string | string[];
-    action: string;
-    args: unknown[];
-    event: string | string[];
-    data: unknown;
-    params?: Record<string, string>;
-    createInRegion?: string;
-    createWithInput?: unknown;
-}
-/**
- * Fetch actor data for use in SolidStart route data functions.
- *
- * - **Server (SSR):** calls the action via stateless HTTP, wraps the result in
- *   a RivetLoadResult for serialization.
- * - **Client (navigation):** calls the action for initial data, then immediately
- *   creates a live subscription via createDetachedActorQuery().
- *
- * ```ts
- * // routes/ssr.tsx
- * import { rivetLoad } from "@blujosi/rivetkit-solid/solidstart";
- *
- * export const route = {
- *   preload: () => ({
- *     count: rivetLoad(rivetClient, {
- *       actor: 'counter',
- *       key: ['test-counter'],
- *       action: 'getCount',
- *       event: 'newCount',
- *     })
- *   })
- * };
- * ```
- */
-declare function rivetLoad<T = unknown, Registry extends AnyActorRegistry = AnyActorRegistry>(client: Client<Registry>, opts: RivetLoadOptions<T>): Promise<RivetQueryResult<T>>;
-/**
- * Encode a RivetLoadResult for serialization across SSR boundary.
- */
-declare function encodeRivetLoad(value: unknown): false | RivetLoadEncoded;
-/**
- * Decode a serialized RivetLoadResult into a live actor subscription.
- */
-declare function decodeRivetLoad<Registry extends AnyActorRegistry>(encoded: RivetLoadEncoded, client: Client<Registry>, transform?: (current: unknown, incoming: unknown) => unknown): RivetQueryResult<unknown>;
+/** @deprecated No longer needed with the Provider-based approach. */
+declare function encodeRivetLoad(value: unknown): false | Record<string, unknown>;
+/** @deprecated No longer needed with the Provider-based approach. */
+declare function decodeRivetLoad<Registry extends AnyActorRegistry>(encoded: Record<string, any>, client: Client<Registry>, transform?: (current: unknown, incoming: unknown) => unknown): RivetQueryResult<unknown>;
 
-export { type RivetLoadOptions, RivetLoadResult, type RivetQueryResult, createRivetKitHandler, decodeRivetLoad, encodeRivetLoad, rivetLoad };
+export { type RivetLoadOptions, RivetLoadResult, type RivetQueryOptions, type RivetQueryResult, createRivetKitHandler, createRivetQuery, decodeRivetLoad, encodeRivetLoad, rivetLoad, useRivetQuery };

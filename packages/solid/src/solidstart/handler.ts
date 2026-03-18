@@ -10,14 +10,15 @@ interface RivetKitHandlerOpts {
 	rivetSiteUrl?: string
 	/** Static headers added to every request sent to the registry handler */
 	headers?: Record<string, string>
-	/** Dynamic headers resolved per-request. Receives the full request. */
-	getHeaders?: (request: Request) => Record<string, string> | Promise<Record<string, string>>
+	/** Dynamic headers resolved per-request. Receives the full event. */
+	getHeaders?: (event: { request: Request, locals: any }) => Record<string, string> | Promise<Record<string, string>>
 }
 
 const handler = async (
-	request: Request,
+	event: { request: Request, locals: any },
 	opts?: RivetKitHandlerOpts,
 ) => {
+	const { request } = event
 	const _requestUrl = new URL(request.url)
 
 	const rivetSiteUrl = opts?.rivetSiteUrl
@@ -76,7 +77,7 @@ const handler = async (
 
 	// Apply dynamic per-request headers
 	if (opts?.getHeaders) {
-		const dynamicHeaders = await opts.getHeaders(request)
+		const dynamicHeaders = await opts.getHeaders(event)
 		for (const [key, value] of Object.entries(dynamicHeaders)) {
 			newRequest.headers.set(key, value)
 		}
@@ -98,8 +99,8 @@ const handler = async (
  * ```
  */
 export const createRivetKitHandler = (opts?: RivetKitHandlerOpts) => {
-	const requestHandler = async ({ request }: { request: Request }) => {
-		return handler(request, opts)
+	const requestHandler = async (event: { request: Request, locals: any }) => {
+		return handler(event, opts)
 	}
 
 	return {

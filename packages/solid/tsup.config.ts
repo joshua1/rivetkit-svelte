@@ -1,3 +1,4 @@
+import { solidPlugin } from "esbuild-plugin-solid"
 import { defineConfig } from "tsup"
 
 export default defineConfig({
@@ -11,4 +12,5 @@ export default defineConfig({
 	clean: true,
 	treeshake: true,
 	external: ["solid-js", "solid-js/web", "solid-js/store"],
+	esbuildPlugins: [solidPlugin()],
 })

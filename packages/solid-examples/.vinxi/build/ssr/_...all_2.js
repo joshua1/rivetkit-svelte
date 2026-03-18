@@ -1,0 +1,1 @@
+import{toSolidStartHandler as o}from"better-auth/solid-start";import{a as t}from"./assets/auth-BxWnXXi5.js";import"better-auth";import"better-sqlite3";const{GET:p,POST:S}=o(t);export{p as GET,S as POST};

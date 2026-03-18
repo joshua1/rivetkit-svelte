@@ -1,1 +1,1 @@
-export * from "./actor.client"
+export { client, rivetClient } from "./actor.client"
