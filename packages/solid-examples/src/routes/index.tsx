@@ -1,22 +1,9 @@
 import { useActorFromContext } from "@blujosi/rivetkit-solid"
-import { createSignal, createEffect, Show } from "solid-js"
-import { authClient } from "~/lib/auth-client"
+import { Show } from "solid-js"
+import { useAuth } from "~/lib/auth-context"
 
 export default function Home() {
-	const session = authClient.useSession()
-	const [jwt, setJwt] = createSignal<string | null>(null)
-
-	// Fetch a JWT for actor connections when the user is signed in
-	createEffect(() => {
-		if (session()?.data) {
-			fetch("/api/token", { credentials: "include" })
-				.then((r) => (r.ok ? r.json() : null))
-				.then((data) => data?.token && setJwt(data.token))
-				.catch(() => setJwt(null))
-		} else {
-			setJwt(null)
-		}
-	})
+	const { session, token, user } = useAuth()
 
 	return (
 		<div>
@@ -30,11 +17,11 @@ export default function Home() {
 				</p>
 			</Show>
 
-			<Show when={session()?.data && jwt()}>
+			<Show when={user() && token()}>
 				<p>
-					Signed in as <strong>{session()?.data?.user.email}</strong>
+					Signed in as <strong>{user()!.email}</strong>
 				</p>
-				<UserCounter userId={session()!.data!.user.id} token={jwt()!} />
+				<UserCounter userId={user()!.id} token={token()!} />
 			</Show>
 		</div>
 	)

@@ -1,5 +1,5 @@
 import * as solid_js from 'solid-js';
-import { ParentComponent, Accessor } from 'solid-js';
+import { ParentProps, Accessor } from 'solid-js';
 import { AnyActorRegistry, CreateRivetKitOptions, ActorOptions } from '@rivetkit/framework-base';
 import { Client, AnyActorDefinition, ActorHandle, ActorConn, createClient, ExtractActorsFromRegistry } from 'rivetkit/client';
 export { createClient } from 'rivetkit/client';
@@ -22,9 +22,9 @@ declare const RivetContext: solid_js.Context<RivetContextValue<AnyActorRegistry>
  * </RivetProvider>
  * ```
  */
-declare const RivetProvider: ParentComponent<{
-    client: Client<any>;
-}>;
+declare function RivetProvider<R extends AnyActorRegistry = AnyActorRegistry>(props: ParentProps<{
+    client: Client<R>;
+}>): solid_js.JSX.Element;
 /**
  * Access the RivetKit client from context.
  *

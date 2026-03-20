@@ -1,22 +1,10 @@
-import { createSignal, createEffect, Show, Suspense } from "solid-js"
+import { Show, Suspense } from "solid-js"
 import { useRivetQuery } from "@blujosi/rivetkit-solid/solidstart"
 import { useActorFromContext } from "@blujosi/rivetkit-solid"
-import { authClient } from "~/lib/auth-client"
+import { useAuth } from "~/lib/auth-context"
 
 export default function SSRPage() {
-	const session = authClient.useSession()
-	const [jwt, setJwt] = createSignal<string | null>(null)
-
-	createEffect(() => {
-		if (session()?.data) {
-			fetch("/api/token", { credentials: "include" })
-				.then((r) => (r.ok ? r.json() : null))
-				.then((data) => data?.token && setJwt(data.token))
-				.catch(() => setJwt(null))
-		} else {
-			setJwt(null)
-		}
-	})
+	const { session, token, user } = useAuth()
 
 	return (
 		<div>
@@ -38,11 +26,11 @@ export default function SSRPage() {
 				</p>
 			</Show>
 
-			<Show when={session()?.data && jwt()}>
+			<Show when={user() && token()}>
 				<p>
-					Signed in as <strong>{session()?.data?.user.email}</strong>
+					Signed in as <strong>{user()!.email}</strong>
 				</p>
-				<SSRCounter userId={session()!.data!.user.id} token={jwt()!} />
+				<SSRCounter userId={user()!.id} token={token()!} />
 			</Show>
 		</div>
 	)
@@ -50,6 +38,7 @@ export default function SSRPage() {
 
 function SSRCounter(props: { userId: string; token: string }) {
 	// useRivetQuery uses createResource for SSR + auto-upgrades to live WS
+	// Token comes from middleware event.locals — no client-side /api/token fetch needed
 	const count = useRivetQuery<number>({
 		actor: "counter",
 		key: ["user-counter", props.userId],

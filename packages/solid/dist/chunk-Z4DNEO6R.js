@@ -1,4 +1,4 @@
-import { useRivet } from './chunk-UB7CV4PH.js';
+import { useRivet } from './chunk-GEAEWIF6.js';
 import { getLogger } from 'rivetkit/log';
 import { createResource, createSignal, createEffect, onCleanup } from 'solid-js';
 

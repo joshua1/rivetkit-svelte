@@ -11,7 +11,7 @@
 import type { AnyActorRegistry } from "@rivetkit/framework-base"
 import type { Client } from "rivetkit/client"
 import {
-	type ParentComponent,
+	type ParentProps,
 	createContext,
 	useContext,
 } from "solid-js"
@@ -44,11 +44,11 @@ const RivetContext = createContext<RivetContextValue>()
  * </RivetProvider>
  * ```
  */
-export const RivetProvider: ParentComponent<{
-	client: Client<any>
-}> = (props) => {
+export function RivetProvider<R extends AnyActorRegistry = AnyActorRegistry>(
+	props: ParentProps<{ client: Client<R> }>,
+) {
 	return (
-		<RivetContext.Provider value={{ client: props.client }}>
+		<RivetContext.Provider value={{ client: props.client as Client<AnyActorRegistry> }}>
 			{props.children}
 		</RivetContext.Provider>
 	)

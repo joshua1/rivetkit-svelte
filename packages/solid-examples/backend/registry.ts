@@ -1,19 +1,15 @@
-import { jwtVerify } from "jose"
 import { actor, setup } from "rivetkit"
-
-const JWT_SECRET = new TextEncoder().encode(
-	process.env.JWT_SECRET || "rivetkit-solid-example-dev-secret-key!!",
-)
+import { auth } from "~/lib/auth"
 
 export const counter = actor({
 	state: { count: 0, countDouble: 3 },
 	onBeforeConnect: async (_c, params) => {
-		const token = params?.token
+		const token = (params as Record<string, string>)?.token
 		if (!token) throw new Error("Unauthorized: No token provided")
 
 		try {
-			const { payload } = await jwtVerify(token, JWT_SECRET)
-			if (!payload.sub) throw new Error("Invalid token: no subject")
+			const { payload } = await auth.api.verifyJWT({ body: { token } })
+			if (!payload?.sub) throw new Error("Invalid token: no subject")
 		} catch (err) {
 			throw new Error(
 				`Unauthorized: ${err instanceof Error ? err.message : "Invalid token"}`,

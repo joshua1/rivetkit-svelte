@@ -1,4 +1,4 @@
-import { __commonJS, __toESM, useRivet } from './chunk-UB7CV4PH.js';
+import { __commonJS, __toESM, useRivet } from './chunk-GEAEWIF6.js';
 import { createClient } from 'rivetkit/client';
 export { createClient } from 'rivetkit/client';
 import { createRoot, createSignal, onCleanup, createEffect } from 'solid-js';

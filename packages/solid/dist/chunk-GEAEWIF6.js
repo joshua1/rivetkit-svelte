@@ -27,7 +27,7 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 var RivetContext = createContext();
-var RivetProvider = (props) => {
+function RivetProvider(props) {
   return createComponent(RivetContext.Provider, {
     get value() {
       return {
@@ -38,7 +38,7 @@ var RivetProvider = (props) => {
       return props.children;
     }
   });
-};
+}
 function useRivet() {
   const ctx = useContext(RivetContext);
   if (!ctx) {
