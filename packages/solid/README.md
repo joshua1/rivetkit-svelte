@@ -34,7 +34,7 @@ npm i @blujosi/rivetkit-solid rivetkit
 
 | Import path | Purpose |
 |---|---|
-| `@blujosi/rivetkit-solid` | Client-side: `RivetProvider`, `useRivet`, `useActorFromContext`, `createClient`, `createRivetKit`, `createRivetKitWithClient` |
+| `@blujosi/rivetkit-solid` | Client-side: `RivetProvider`, `useRivet`, `useActorFromContext`, `createClient`, `createRivetKit`, `createRivetKitWithClient`, CRUD transforms |
 | `@blujosi/rivetkit-solid/solid` | SolidJS-specific: full client exports (re-exported from main) |
 | `@blujosi/rivetkit-solid/solidstart` | Server + SSR: `createRivetKitHandler`, `useRivetQuery`, `createRivetQuery` |
 
@@ -443,6 +443,133 @@ const count = counterActor?.useActionQuery({
 | Event data used? | Yes — event payload updates the value | No — event is just an invalidation signal |
 | Re-fetches action? | No — only on initial connect | Yes — every time the event fires |
 | Best for | Simple values broadcast via events | Computed/derived values that need a fresh server call |
+
+---
+
+### CRUD Transforms (`@blujosi/rivetkit-solid`)
+
+Pre-built `transform` factories for managing lists of items via create/update/delete events. Use with `useQuery`, `useActionQuery`, or `useRivetQuery`.
+
+```typescript
+import {
+  crudTransform,
+  createTransform,
+  updateTransform,
+  deleteTransform,
+} from "@blujosi/rivetkit-solid";
+```
+
+#### `crudTransform<T>(opts?)`
+
+A unified transform that handles all three CRUD operations in a single function. The actor broadcasts events wrapped in a `CrudEvent<T>`:
+
+```typescript
+// In the actor:
+c.broadcast("taskChanged", { type: "created", data: newTask });
+c.broadcast("taskChanged", { type: "updated", data: updatedTask });
+c.broadcast("taskChanged", { type: "deleted", data: deletedTask });
+```
+
+```tsx
+// In the component:
+interface Task { id: string; title: string; done: boolean }
+
+// With useRivetQuery (SSR + live)
+const tasks = useRivetQuery<Task[]>({
+  actor: "taskList",
+  key: ["my-list"],
+  action: "getTasks",
+  event: "taskChanged",
+  transform: crudTransform<Task>({ key: "id" }),
+});
+
+// With useQuery (client-side)
+const tasks = actor?.useQuery({
+  action: "getTasks",
+  event: "taskChanged",
+  initialValue: [],
+  transform: crudTransform<Task>({ key: "id" }),
+});
+```
+
+If the incoming payload is **not** wrapped in `{ type, data }`, `crudTransform` falls back to an **upsert** — it updates the item if it exists, or appends it otherwise.
+
+**Options (`CrudTransformOptions<T>`):**
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `key` | `keyof T \| (item: T) => unknown` | `"id"` | Property name or accessor used to uniquely identify items |
+
+**`CrudEvent<T>` shape:**
+
+| Field | Type | Description |
+|---|---|---|
+| `type` | `"created" \| "updated" \| "deleted"` | The operation type |
+| `data` | `T` | The item (or key value for deletes) |
+
+#### Individual Transforms
+
+Use these when you have **separate events** for each operation:
+
+##### `createTransform<T>(opts?)`
+
+Appends the incoming item to the list. Duplicates (same key) are ignored.
+
+```typescript
+actor?.useQuery({
+  action: "getTasks",
+  event: "taskCreated",
+  initialValue: [],
+  transform: createTransform<Task>({ key: "id" }),
+});
+```
+
+##### `updateTransform<T>(opts?)`
+
+Replaces the matching item in-place. If no match is found, the list is returned unchanged.
+
+```typescript
+actor?.useQuery({
+  action: "getTasks",
+  event: "taskUpdated",
+  initialValue: [],
+  transform: updateTransform<Task>({ key: "id" }),
+});
+```
+
+##### `deleteTransform<T>(opts?)`
+
+Removes the matching item. Accepts either a full object or a raw key value.
+
+```typescript
+actor?.useQuery({
+  action: "getTasks",
+  event: "taskDeleted",
+  initialValue: [],
+  transform: deleteTransform<Task>({ key: "id" }),
+});
+
+// The actor can broadcast just the key:
+c.broadcast("taskDeleted", taskId);
+// Or the full object:
+c.broadcast("taskDeleted", task);
+```
+
+#### Custom Key Functions
+
+For items keyed by something other than a single property:
+
+```typescript
+const items = useRivetQuery<Item[]>({
+  actor: "items",
+  key: ["all"],
+  action: "getItems",
+  event: "itemChanged",
+  transform: crudTransform<Item>({
+    key: (item) => `${item.type}:${item.slug}`,
+  }),
+});
+```
 
 ---
 

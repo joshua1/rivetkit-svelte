@@ -36,6 +36,74 @@ declare function RivetProvider<R extends AnyActorRegistry = AnyActorRegistry>(pr
  */
 declare function useRivet<Registry extends AnyActorRegistry = AnyActorRegistry>(): RivetContextValue<Registry>;
 
+/**
+ * Generic CRUD transform factories for use with `useQuery` and `useRivetQuery`.
+ *
+ * These produce `transform` functions that handle incoming create/update/delete
+ * events against a list of items, keyed by an identifier field.
+ *
+ * @example
+ * ```ts
+ * const tasks = useRivetQuery<Task[]>({
+ *   actor: "taskList",
+ *   key: ["my-list"],
+ *   action: "getTasks",
+ *   event: ["taskCreated", "taskUpdated", "taskDeleted"],
+ *   transform: crudTransform<Task>({ key: "id" }),
+ * });
+ * ```
+ */
+/** An incoming event payload that carries a CRUD operation type. */
+interface CrudEvent<T> {
+    type: "created" | "updated" | "deleted";
+    data: T;
+}
+/** Options shared by all CRUD transform factories. */
+interface CrudTransformOptions<T> {
+    /**
+     * Property name (or accessor) used to uniquely identify items.
+     * Defaults to `"id"`.
+     */
+    key?: keyof T | ((item: T) => unknown);
+}
+/**
+ * Transform for a **create** event — appends the incoming item to the list.
+ * Duplicates (same key) are ignored.
+ */
+declare function createTransform<T>(opts?: CrudTransformOptions<T>): (current: T[], incoming: unknown) => T[];
+/**
+ * Transform for an **update** event — replaces the matching item in-place.
+ * If no match is found the list is returned unchanged.
+ */
+declare function updateTransform<T>(opts?: CrudTransformOptions<T>): (current: T[], incoming: unknown) => T[];
+/**
+ * Transform for a **delete** event — removes the matching item.
+ * `incoming` can be the full item or just the key value.
+ */
+declare function deleteTransform<T>(opts?: CrudTransformOptions<T>): (current: T[], incoming: unknown) => T[];
+/**
+ * A single transform that handles create, update, and delete events.
+ *
+ * Incoming payloads must be wrapped in a `CrudEvent<T>`:
+ * ```ts
+ * { type: "created", data: item }
+ * { type: "updated", data: item }
+ * { type: "deleted", data: item }  // or { type: "deleted", data: id }
+ * ```
+ *
+ * @example
+ * ```ts
+ * const users = useRivetQuery<User[]>({
+ *   actor: "userList",
+ *   key: ["all"],
+ *   action: "getUsers",
+ *   event: "userChanged",
+ *   transform: crudTransform<User>({ key: "id" }),
+ * });
+ * ```
+ */
+declare function crudTransform<T>(opts?: CrudTransformOptions<T>): (current: T[], incoming: unknown) => T[];
+
 interface ActorStateReference<AD extends AnyActorDefinition> {
     hash: string;
     handle: ActorHandle<AD> | null;
@@ -184,4 +252,4 @@ declare function useActorFromContext<Registry extends AnyActorRegistry = AnyActo
     };
 };
 
-export { type ActorStateReference, RivetContext, RivetProvider, createRivetKit, createRivetKitWithClient, useActorFromContext, useRivet };
+export { type ActorStateReference, type CrudEvent, type CrudTransformOptions, RivetContext, RivetProvider, createRivetKit, createRivetKitWithClient, createTransform, crudTransform, deleteTransform, updateTransform, useActorFromContext, useRivet };

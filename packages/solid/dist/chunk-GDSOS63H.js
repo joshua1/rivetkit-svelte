@@ -37,6 +37,66 @@ var require_fast_deep_equal = __commonJS({
   }
 });
 
+// src/solid/crud-transforms.ts
+function getKey(item, key) {
+  return typeof key === "function" ? key(item) : item[key];
+}
+function isCrudEvent(value) {
+  return typeof value === "object" && value !== null && "type" in value && "data" in value && typeof value.type === "string";
+}
+function createTransform(opts = {}) {
+  const keyProp = opts.key ?? "id";
+  return (current, incoming) => {
+    const item = incoming;
+    const id = getKey(item, keyProp);
+    if (current.some((c) => getKey(c, keyProp) === id)) return current;
+    return [...current, item];
+  };
+}
+function updateTransform(opts = {}) {
+  const keyProp = opts.key ?? "id";
+  return (current, incoming) => {
+    const item = incoming;
+    const id = getKey(item, keyProp);
+    const idx = current.findIndex((c) => getKey(c, keyProp) === id);
+    if (idx === -1) return current;
+    const next = [...current];
+    next[idx] = item;
+    return next;
+  };
+}
+function deleteTransform(opts = {}) {
+  const keyProp = opts.key ?? "id";
+  return (current, incoming) => {
+    const id = typeof incoming === "object" && incoming !== null ? getKey(incoming, keyProp) : incoming;
+    return current.filter((c) => getKey(c, keyProp) !== id);
+  };
+}
+function crudTransform(opts = {}) {
+  const create2 = createTransform(opts);
+  const update = updateTransform(opts);
+  const del = deleteTransform(opts);
+  return (current, incoming) => {
+    if (!isCrudEvent(incoming)) {
+      const keyProp = opts.key ?? "id";
+      const item = incoming;
+      const id = getKey(item, keyProp);
+      const exists = current.some((c) => getKey(c, keyProp) === id);
+      return exists ? update(current, incoming) : create2(current, incoming);
+    }
+    switch (incoming.type) {
+      case "created":
+        return create2(current, incoming.data);
+      case "updated":
+        return update(current, incoming.data);
+      case "deleted":
+        return del(current, incoming.data);
+      default:
+        return current;
+    }
+  };
+}
+
 // ../../node_modules/.pnpm/@tanstack+store@0.7.4/node_modules/@tanstack/store/dist/esm/scheduler.js
 var __storeToDerived = /* @__PURE__ */ new WeakMap();
 var __derivedToStore = /* @__PURE__ */ new WeakMap();
@@ -714,4 +774,4 @@ function useActorFromContext(opts) {
   return useActor(opts);
 }
 
-export { createRivetKit2 as createRivetKit, createRivetKitWithClient, useActorFromContext };
+export { createRivetKit2 as createRivetKit, createRivetKitWithClient, createTransform, crudTransform, deleteTransform, updateTransform, useActorFromContext };
