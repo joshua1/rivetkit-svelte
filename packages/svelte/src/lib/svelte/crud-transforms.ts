@@ -1,16 +1,16 @@
 /**
- * Generic CRUD transform factories for use with `useQuery` and `useRivetQuery`.
+ * Generic CRUD transform factories for use with `useQuery` and `rivetLoad`.
  *
  * These produce `transform` functions that handle incoming create/update/delete
  * events against a list of items, keyed by an identifier field.
  *
  * @example
  * ```ts
- * const tasks = useRivetQuery<Task[]>({
+ * const tasks = await rivetLoad(client, {
  *   actor: "taskList",
  *   key: ["my-list"],
  *   action: "getTasks",
- *   event: ["taskCreated", "taskUpdated", "taskDeleted"],
+ *   event: "taskChanged",
  *   transform: crudTransform<Task>({ key: "id" }),
  * });
  * ```
@@ -108,7 +108,6 @@ export function deleteTransform<T>(
 	const keyProp = opts.key ?? ("id" as keyof T)
 	return ((current: T[] | T, incoming: unknown): T[] | T => {
 		if (Array.isArray(current)) {
-			// Accept either a full object or a raw key value (string, number, etc.)
 			const id =
 				typeof incoming === "object" && incoming !== null
 					? getKey(incoming as T, keyProp)
@@ -140,11 +139,10 @@ export function deleteTransform<T>(
  *
  * @example
  * ```ts
- * const users = useRivetQuery<User[]>({
- *   actor: "userList",
- *   key: ["all"],
+ * const users = todoActor?.useQuery({
  *   action: "getUsers",
  *   event: "userListUpdate",
+ *   initialValue: [],
  *   transform: crudTransform<User>({ key: "id" }),
  * });
  * ```

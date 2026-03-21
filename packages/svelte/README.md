@@ -24,6 +24,7 @@ npm i @blujosi/rivetkit-svelte rivetkit
 - **Svelte 5 Runes** — Built for `$state`, `$effect`, and `$derived`
 - **Real-time Actor Connections** — Connect to RivetKit actors with automatic state sync
 - **Event Handling** — `useEvent` with automatic cleanup
+- **CRUD Transforms** — Pre-built transform factories for managing lists via create/update/delete events
 - **Type Safety** — Full TypeScript support with registry type inference
 - **SSR Compatible** — Browser guard for SvelteKit SSR
 - **SvelteKit Handler** — Run RivetKit serverless inside your SvelteKit app
@@ -469,6 +470,139 @@ count?.refetch();
 | **Transform** | Not needed | Optional (default: shallow merge) |
 | **Best for** | Most use-cases | High-frequency events where refetch would be wasteful |
 | **Refetch** | `.refetch()` available | Not available |
+
+---
+
+### CRUD Transforms (`@blujosi/rivetkit-svelte`)
+
+Pre-built `transform` factories for managing lists of items via create/update/delete events. Use with `useQuery` or `rivetLoad`.
+
+```typescript
+import {
+  crudTransform,
+  createTransform,
+  updateTransform,
+  deleteTransform,
+} from "@blujosi/rivetkit-svelte";
+```
+
+#### `crudTransform<T>(opts?)`
+
+A unified transform that handles all three CRUD operations in a single function. The actor broadcasts events wrapped in a `CrudEvent<T>`:
+
+```typescript
+// In the actor:
+c.broadcast("taskChanged", { type: "created", data: newTask });
+c.broadcast("taskChanged", { type: "updated", data: updatedTask });
+c.broadcast("taskChanged", { type: "deleted", data: deletedTask });
+```
+
+```svelte
+<script lang="ts">
+  import { crudTransform } from "@blujosi/rivetkit-svelte";
+
+  interface Task { id: string; title: string; done: boolean }
+
+  // With useQuery (client-side)
+  const tasks = actor?.useQuery({
+    action: "getTasks",
+    event: "taskChanged",
+    initialValue: [] as Task[],
+    transform: crudTransform<Task>({ key: "id" }),
+  });
+</script>
+```
+
+```typescript
+// With rivetLoad (SSR + live)
+const tasks = await rivetLoad(client, {
+  actor: "taskList",
+  key: ["my-list"],
+  action: "getTasks",
+  event: "taskChanged",
+  transform: crudTransform<Task>({ key: "id" }),
+});
+```
+
+If the incoming payload is **not** wrapped in `{ type, data }`, `crudTransform` falls back to an **upsert** — it updates the item if it exists, or appends it otherwise.
+
+**Options (`CrudTransformOptions<T>`):**
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `key` | `keyof T \| (item: T) => unknown` | `"id"` | Property name or accessor used to uniquely identify items |
+
+**`CrudEvent<T>` shape:**
+
+| Field | Type | Description |
+|---|---|---|
+| `type` | `"created" \| "updated" \| "deleted"` | The operation type |
+| `data` | `T` | The item (or key value for deletes) |
+
+#### Individual Transforms
+
+Use these when you have **separate events** for each operation:
+
+##### `createTransform<T>(opts?)`
+
+Appends the incoming item to the list. Duplicates (same key) are ignored.
+
+```typescript
+const tasks = actor?.useQuery({
+  action: "getTasks",
+  event: "taskCreated",
+  initialValue: [],
+  transform: createTransform<Task>({ key: "id" }),
+});
+```
+
+##### `updateTransform<T>(opts?)`
+
+Replaces the matching item in-place. If no match is found, the list is returned unchanged.
+
+```typescript
+const tasks = actor?.useQuery({
+  action: "getTasks",
+  event: "taskUpdated",
+  initialValue: [],
+  transform: updateTransform<Task>({ key: "id" }),
+});
+```
+
+##### `deleteTransform<T>(opts?)`
+
+Removes the matching item. Accepts either a full object or a raw key value.
+
+```typescript
+const tasks = actor?.useQuery({
+  action: "getTasks",
+  event: "taskDeleted",
+  initialValue: [],
+  transform: deleteTransform<Task>({ key: "id" }),
+});
+
+// The actor can broadcast just the key:
+c.broadcast("taskDeleted", taskId);
+// Or the full object:
+c.broadcast("taskDeleted", task);
+```
+
+#### Custom Key Functions
+
+For items keyed by something other than a single property:
+
+```typescript
+const items = actor?.useQuery({
+  action: "getItems",
+  event: "itemChanged",
+  initialValue: [],
+  transform: crudTransform<Item>({
+    key: (item) => `${item.type}:${item.slug}`,
+  }),
+});
+```
+
+---
 
 ### SvelteKit Exports (`@blujosi/rivetkit-svelte/sveltekit`)
 

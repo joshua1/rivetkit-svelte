@@ -15,6 +15,7 @@ export default function App() {
 							<nav style={{ padding: "1rem", "border-bottom": "1px solid #ccc" }}>
 								<a href="/">Counter</a>{" | "}
 								<a href="/ssr">SSR Counter</a>{" | "}
+								<a href="/todos">Todos</a>{" | "}
 								<a href="/auth">Auth</a>
 							</nav>
 							<main style={{ padding: "1rem" }}>

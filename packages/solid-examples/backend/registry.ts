@@ -1,6 +1,12 @@
 import { actor, setup } from "rivetkit"
 import { auth } from "~/lib/auth"
 
+interface Todo {
+	id: string
+	title: string
+	done: boolean
+}
+
 export const counter = actor({
 	state: { count: 0, countDouble: 3 },
 	onBeforeConnect: async (_c, params) => {
@@ -49,8 +55,52 @@ export const counter = actor({
 	},
 })
 
+export const todoList = actor({
+	state: { todos: [] as Todo[], nextId: 1 },
+	onBeforeConnect: async (_c, params) => {
+		const token = (params as Record<string, string>)?.token
+		if (!token) throw new Error("Unauthorized: No token provided")
+
+		try {
+			const { payload } = await auth.api.verifyJWT({ body: { token } })
+			if (!payload?.sub) throw new Error("Invalid token: no subject")
+		} catch (err) {
+			throw new Error(
+				`Unauthorized: ${err instanceof Error ? err.message : "Invalid token"}`,
+			)
+		}
+	},
+	actions: {
+		getTodos: (c) => c.state.todos,
+		addTodo: (c, title: string) => {
+			const todo: Todo = {
+				id: String(c.state.nextId++),
+				title,
+				done: false,
+			}
+			c.state.todos.push(todo)
+			c.broadcast("todoListUpdate", { data: todo, type: "created" })
+			return todo
+		},
+		toggleTodo: (c, id: string) => {
+			const todo = c.state.todos.find((t) => t.id === id)
+			if (!todo) throw new Error("Todo not found")
+			todo.done = !todo.done
+			c.broadcast("todoListUpdate", { data: { ...todo }, type: "updated" })
+			return todo
+		},
+		removeTodo: (c, id: string) => {
+			const idx = c.state.todos.findIndex((t) => t.id === id)
+			if (idx === -1) throw new Error("Todo not found")
+			const [removed] = c.state.todos.splice(idx, 1)
+			c.broadcast("todoListUpdate", { data: removed, type: "deleted" })
+			return removed
+		},
+	},
+})
+
 export const registry = setup({
-	use: { counter },
+	use: { counter, todoList },
 })
 
 export type Registry = typeof registry
