@@ -27,7 +27,7 @@ export {};
 
 declare module "$app/types" {
 	export interface AppTypes {
-		RouteId(): "/" | "/api" | "/api/rivet" | "/api/rivet/[...rest]" | "/ssr";
+		RouteId(): "/" | "/api" | "/api/rivet" | "/api/rivet/[...rest]" | "/ssr" | "/todos";
 		RouteParams(): {
 			"/api/rivet/[...rest]": { rest: string }
 		};
@@ -36,9 +36,10 @@ declare module "$app/types" {
 			"/api": { rest?: string };
 			"/api/rivet": { rest?: string };
 			"/api/rivet/[...rest]": { rest: string };
-			"/ssr": Record<string, never>
+			"/ssr": Record<string, never>;
+			"/todos": Record<string, never>
 		};
-		Pathname(): "/" | `/api/rivet/${string}` & {} | "/ssr";
+		Pathname(): "/" | `/api/rivet/${string}` & {} | "/ssr" | "/todos";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
 		Asset(): "/robots.txt" | string & {};
 	}

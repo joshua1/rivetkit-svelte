@@ -53,10 +53,17 @@ declare function useRivet<Registry extends AnyActorRegistry = AnyActorRegistry>(
  * });
  * ```
  */
-/** An incoming event payload that carries a CRUD operation type. */
+/**
+ * An incoming event payload that carries a CRUD operation type.
+ *
+ * Actors should broadcast events in this shape:
+ * ```ts
+ * c.broadcast("todoListUpdate", { data: todo, type: "created" })
+ * ```
+ */
 interface CrudEvent<T> {
-    type: "created" | "updated" | "deleted";
     data: T;
+    type: "created" | "updated" | "deleted";
 }
 /** Options shared by all CRUD transform factories. */
 interface CrudTransformOptions<T> {
@@ -67,28 +74,36 @@ interface CrudTransformOptions<T> {
     key?: keyof T | ((item: T) => unknown);
 }
 /**
- * Transform for a **create** event — appends the incoming item to the list.
- * Duplicates (same key) are ignored.
+ * Transform for a **create** event.
+ * - **Array:** appends the incoming item; duplicates (same key) are ignored.
+ * - **Single item:** replaces the current value with the incoming item.
  */
-declare function createTransform<T>(opts?: CrudTransformOptions<T>): (current: T[], incoming: unknown) => T[];
+declare function createTransform<T>(opts?: CrudTransformOptions<T>): <C extends T[] | T>(current: C, incoming: unknown) => C;
 /**
- * Transform for an **update** event — replaces the matching item in-place.
- * If no match is found the list is returned unchanged.
+ * Transform for an **update** event.
+ * - **Array:** replaces the matching item in-place; returns unchanged if no match.
+ * - **Single item:** replaces the current value with the incoming item.
  */
-declare function updateTransform<T>(opts?: CrudTransformOptions<T>): (current: T[], incoming: unknown) => T[];
+declare function updateTransform<T>(opts?: CrudTransformOptions<T>): <C extends T[] | T>(current: C, incoming: unknown) => C;
 /**
- * Transform for a **delete** event — removes the matching item.
- * `incoming` can be the full item or just the key value.
+ * Transform for a **delete** event.
+ * - **Array:** removes the matching item. `incoming` can be the full item or just the key value.
+ * - **Single item:** returns the current value unchanged (cannot delete a scalar).
  */
-declare function deleteTransform<T>(opts?: CrudTransformOptions<T>): (current: T[], incoming: unknown) => T[];
+declare function deleteTransform<T>(opts?: CrudTransformOptions<T>): <C extends T[] | T>(current: C, incoming: unknown) => C;
 /**
  * A single transform that handles create, update, and delete events.
  *
- * Incoming payloads must be wrapped in a `CrudEvent<T>`:
+ * Incoming payloads must be a `CrudEvent<T>` with `{ data, type }`:
  * ```ts
- * { type: "created", data: item }
- * { type: "updated", data: item }
- * { type: "deleted", data: item }  // or { type: "deleted", data: id }
+ * { data: item, type: "created" }
+ * { data: item, type: "updated" }
+ * { data: item, type: "deleted" }
+ * ```
+ *
+ * Actors should broadcast in this shape:
+ * ```ts
+ * c.broadcast("todoListUpdate", { data: todo, type: "created" })
  * ```
  *
  * @example
@@ -97,12 +112,12 @@ declare function deleteTransform<T>(opts?: CrudTransformOptions<T>): (current: T
  *   actor: "userList",
  *   key: ["all"],
  *   action: "getUsers",
- *   event: "userChanged",
+ *   event: "userListUpdate",
  *   transform: crudTransform<User>({ key: "id" }),
  * });
  * ```
  */
-declare function crudTransform<T>(opts?: CrudTransformOptions<T>): (current: T[], incoming: unknown) => T[];
+declare function crudTransform<T>(opts?: CrudTransformOptions<T>): <C extends T[] | T>(current: C, incoming: CrudEvent<T>) => C;
 
 interface ActorStateReference<AD extends AnyActorDefinition> {
     hash: string;

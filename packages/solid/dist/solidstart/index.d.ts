@@ -14,6 +14,16 @@ interface RivetKitHandlerOpts {
         request: Request;
         locals: any;
     }) => Record<string, string> | Promise<Record<string, string>>;
+    /**
+     * The runtime to use for handling requests.
+     *
+     * - `"default"` — uses the built-in registry handler (Node.js / Bun compatible).
+     * - `"cloudflare"` — delegates to `@rivetkit/cloudflare-workers`'s `createHandler`.
+     *   Requires `@rivetkit/cloudflare-workers` to be installed as a peer dependency.
+     *
+     * @default "default"
+     */
+    runtime?: "default" | "cloudflare";
 }
 /**
  * Creates SolidStart API route handlers for a catch-all route.
@@ -156,4 +166,4 @@ declare function encodeRivetLoad(value: unknown): false | Record<string, unknown
 /** @deprecated No longer needed with the Provider-based approach. */
 declare function decodeRivetLoad<Registry extends AnyActorRegistry>(encoded: Record<string, any>, client: Client<Registry>, transform?: (current: unknown, incoming: unknown) => unknown): RivetQueryResult<unknown>;
 
-export { type RivetLoadOptions, RivetLoadResult, type RivetQueryOptions, type RivetQueryResult, createRivetKitHandler, createRivetQuery, decodeRivetLoad, encodeRivetLoad, rivetLoad, useRivetQuery };
+export { type RivetKitHandlerOpts, type RivetLoadOptions, RivetLoadResult, type RivetQueryOptions, type RivetQueryResult, createRivetKitHandler, createRivetQuery, decodeRivetLoad, encodeRivetLoad, rivetLoad, useRivetQuery };

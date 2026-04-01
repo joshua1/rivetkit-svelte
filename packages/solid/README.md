@@ -106,6 +106,33 @@ export const { GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS } =
 | `rivetSiteUrl` | `string` | Base URL for the site |
 | `headers` | `Record<string, string>?` | Static headers added to every request |
 | `getHeaders` | `(request: Request) => Record<string, string>?` | Dynamic per-request headers |
+| `runtime` | `"default" \| "cloudflare"?` | Runtime to use. `"default"` uses the built-in registry handler; `"cloudflare"` delegates to `@rivetkit/cloudflare-workers`. Defaults to `"default"` |
+
+#### Cloudflare Workers Runtime
+
+To deploy your SolidStart app on Cloudflare Workers, set `runtime: "cloudflare"` and install the Cloudflare Workers adapter:
+
+```bash
+npm install @rivetkit/cloudflare-workers
+```
+
+Then update your handler:
+
+```typescript
+// src/routes/api/rivet/[...rest].ts
+import { createRivetKitHandler } from "@blujosi/rivetkit-solid/solidstart";
+import { registry } from "~backend/registry";
+
+export const { GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS } =
+  createRivetKitHandler({
+    isDev: !!import.meta.env.DEV,
+    registry,
+    rivetSiteUrl: "http://localhost:3000",
+    runtime: "cloudflare",
+  });
+```
+
+When `runtime: "cloudflare"` is set, the handler dynamically imports `@rivetkit/cloudflare-workers` and uses its `createHandler` to process requests via Cloudflare's Durable Objects. The `@rivetkit/cloudflare-workers` package is an optional peer dependency — it only needs to be installed when using the Cloudflare runtime.
 
 ### 3. Create the Client & Wrap with Provider
 

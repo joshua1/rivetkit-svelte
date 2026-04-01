@@ -4,7 +4,7 @@ import { getLogger } from "rivetkit/log"
 const _devRunnerVersion = Math.floor(Date.now() / 1000)
 const _logger = getLogger("driver-solidstart")
 
-interface RivetKitHandlerOpts {
+export interface RivetKitHandlerOpts {
 	registry: Registry<any>
 	isDev: boolean
 	rivetSiteUrl?: string
@@ -12,6 +12,16 @@ interface RivetKitHandlerOpts {
 	headers?: Record<string, string>
 	/** Dynamic headers resolved per-request. Receives the full event. */
 	getHeaders?: (event: { request: Request, locals: any }) => Record<string, string> | Promise<Record<string, string>>
+	/**
+	 * The runtime to use for handling requests.
+	 *
+	 * - `"default"` — uses the built-in registry handler (Node.js / Bun compatible).
+	 * - `"cloudflare"` — delegates to `@rivetkit/cloudflare-workers`'s `createHandler`.
+	 *   Requires `@rivetkit/cloudflare-workers` to be installed as a peer dependency.
+	 *
+	 * @default "default"
+	 */
+	runtime?: "default" | "cloudflare"
 }
 
 const handler = async (
@@ -99,8 +109,60 @@ const handler = async (
  * ```
  */
 export const createRivetKitHandler = (opts?: RivetKitHandlerOpts) => {
+	const runtime = opts?.runtime ?? "default"
+
+	if (runtime === "cloudflare") {
+		return createCloudflareHandler(opts)
+	}
+
 	const requestHandler = async (event: { request: Request, locals: any }) => {
 		return handler(event, opts)
+	}
+
+	return {
+		GET: requestHandler,
+		POST: requestHandler,
+		PUT: requestHandler,
+		DELETE: requestHandler,
+		PATCH: requestHandler,
+		HEAD: requestHandler,
+		OPTIONS: requestHandler,
+	}
+}
+
+/**
+ * Resolves the Cloudflare Workers handler by dynamically importing
+ * `@rivetkit/cloudflare-workers`. The package must be installed as a
+ * peer dependency when `runtime: "cloudflare"` is used.
+ */
+function createCloudflareHandler(opts?: RivetKitHandlerOpts) {
+	const registry = opts?.registry
+	if (!registry) {
+		throw new Error("registry is required for cloudflare runtime")
+	}
+
+	let cfHandlerPromise: Promise<{ handler: { fetch: (req: Request, env: unknown, ctx: unknown) => Promise<Response> }; ActorHandler: unknown }> | undefined
+
+	const getCfHandler = () => {
+		if (!cfHandlerPromise) {
+			cfHandlerPromise = import("@rivetkit/cloudflare-workers").then(
+				(mod) => mod.createHandler(registry),
+				() => {
+					throw new Error(
+						'runtime "cloudflare" requires @rivetkit/cloudflare-workers to be installed. ' +
+						"Install it with: npm install @rivetkit/cloudflare-workers",
+					)
+				},
+			)
+		}
+		return cfHandlerPromise
+	}
+
+	const requestHandler = async (event: { request: Request, locals: any }) => {
+		const { handler: cfHandler } = await getCfHandler()
+		// Cloudflare handler expects (request, env, ctx). In SolidStart we pass
+		// the locals as the env binding and a minimal execution context.
+		return cfHandler.fetch(event.request, event.locals ?? {}, { waitUntil: () => { }, passThroughOnException: () => { } })
 	}
 
 	return {

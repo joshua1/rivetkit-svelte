@@ -101,6 +101,36 @@ The handler automatically:
 | `registry` | `Registry` | Your RivetKit registry instance |
 | `isDev` | `boolean` | Enables auto-engine spawn and runner pool config |
 | `rivetSiteUrl` | `string?` | Base URL for the site. Falls back to `PUBLIC_RIVET_ENDPOINT` env var |
+| `headers` | `Record<string, string>?` | Static headers added to every request |
+| `getHeaders` | `(event: RequestEvent) => Record<string, string>?` | Dynamic per-request headers |
+| `runtime` | `"default" \| "cloudflare"?` | Runtime to use. `"default"` uses the built-in registry handler; `"cloudflare"` delegates to `@rivetkit/cloudflare-workers`. Defaults to `"default"` |
+
+#### Cloudflare Workers Runtime
+
+To deploy your SvelteKit app on Cloudflare Workers, set `runtime: "cloudflare"` and install the Cloudflare Workers adapter:
+
+```bash
+npm install @rivetkit/cloudflare-workers
+```
+
+Then update your handler:
+
+```typescript
+// src/routes/api/rivet/[...rest]/+server.ts
+import { createRivetKitHandler } from "@blujosi/rivetkit-svelte/sveltekit";
+import { dev } from "$app/environment";
+import { registry } from "$backend/registry";
+
+export const { GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS } =
+  createRivetKitHandler({
+    isDev: !!dev,
+    registry,
+    rivetSiteUrl: "http://localhost:5173",
+    runtime: "cloudflare",
+  });
+```
+
+When `runtime: "cloudflare"` is set, the handler dynamically imports `@rivetkit/cloudflare-workers` and uses its `createHandler` to process requests via Cloudflare's Durable Objects. The SvelteKit adapter automatically passes `event.platform.env` and `event.platform.ctx` from the Cloudflare Workers environment. The `@rivetkit/cloudflare-workers` package is an optional peer dependency — it only needs to be installed when using the Cloudflare runtime.
 
 ### 3. Create the Client
 

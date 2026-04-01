@@ -41,49 +41,48 @@ var require_fast_deep_equal = __commonJS({
 function getKey(item, key) {
   return typeof key === "function" ? key(item) : item[key];
 }
-function isCrudEvent(value) {
-  return typeof value === "object" && value !== null && "type" in value && "data" in value && typeof value.type === "string";
-}
 function createTransform(opts = {}) {
   const keyProp = opts.key ?? "id";
-  return (current, incoming) => {
+  return ((current, incoming) => {
     const item = incoming;
-    const id = getKey(item, keyProp);
-    if (current.some((c) => getKey(c, keyProp) === id)) return current;
-    return [...current, item];
-  };
+    if (Array.isArray(current)) {
+      const id = getKey(item, keyProp);
+      if (current.some((c) => getKey(c, keyProp) === id)) return current;
+      return [...current, item];
+    }
+    return item;
+  });
 }
 function updateTransform(opts = {}) {
   const keyProp = opts.key ?? "id";
-  return (current, incoming) => {
+  return ((current, incoming) => {
     const item = incoming;
-    const id = getKey(item, keyProp);
-    const idx = current.findIndex((c) => getKey(c, keyProp) === id);
-    if (idx === -1) return current;
-    const next = [...current];
-    next[idx] = item;
-    return next;
-  };
+    if (Array.isArray(current)) {
+      const id = getKey(item, keyProp);
+      const idx = current.findIndex((c) => getKey(c, keyProp) === id);
+      if (idx === -1) return current;
+      const next = [...current];
+      next[idx] = item;
+      return next;
+    }
+    return item;
+  });
 }
 function deleteTransform(opts = {}) {
   const keyProp = opts.key ?? "id";
-  return (current, incoming) => {
-    const id = typeof incoming === "object" && incoming !== null ? getKey(incoming, keyProp) : incoming;
-    return current.filter((c) => getKey(c, keyProp) !== id);
-  };
+  return ((current, incoming) => {
+    if (Array.isArray(current)) {
+      const id = typeof incoming === "object" && incoming !== null ? getKey(incoming, keyProp) : incoming;
+      return current.filter((c) => getKey(c, keyProp) !== id);
+    }
+    return current;
+  });
 }
 function crudTransform(opts = {}) {
   const create2 = createTransform(opts);
   const update = updateTransform(opts);
   const del = deleteTransform(opts);
-  return (current, incoming) => {
-    if (!isCrudEvent(incoming)) {
-      const keyProp = opts.key ?? "id";
-      const item = incoming;
-      const id = getKey(item, keyProp);
-      const exists = current.some((c) => getKey(c, keyProp) === id);
-      return exists ? update(current, incoming) : create2(current, incoming);
-    }
+  return ((current, incoming) => {
     switch (incoming.type) {
       case "created":
         return create2(current, incoming.data);
@@ -94,7 +93,7 @@ function crudTransform(opts = {}) {
       default:
         return current;
     }
-  };
+  });
 }
 
 // ../../node_modules/.pnpm/@tanstack+store@0.7.4/node_modules/@tanstack/store/dist/esm/scheduler.js

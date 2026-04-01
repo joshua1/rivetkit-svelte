@@ -60,6 +60,10 @@ var handler = async (event, opts) => {
   return await registry.handler(newRequest);
 };
 var createRivetKitHandler = (opts) => {
+  const runtime = opts?.runtime ?? "default";
+  if (runtime === "cloudflare") {
+    return createCloudflareHandler(opts);
+  }
   const requestHandler = async (event) => {
     return handler(event, opts);
   };
@@ -73,6 +77,41 @@ var createRivetKitHandler = (opts) => {
     OPTIONS: requestHandler
   };
 };
+function createCloudflareHandler(opts) {
+  const registry = opts?.registry;
+  if (!registry) {
+    throw new Error("registry is required for cloudflare runtime");
+  }
+  let cfHandlerPromise;
+  const getCfHandler = () => {
+    if (!cfHandlerPromise) {
+      cfHandlerPromise = import('@rivetkit/cloudflare-workers').then(
+        (mod) => mod.createHandler(registry),
+        () => {
+          throw new Error(
+            'runtime "cloudflare" requires @rivetkit/cloudflare-workers to be installed. Install it with: npm install @rivetkit/cloudflare-workers'
+          );
+        }
+      );
+    }
+    return cfHandlerPromise;
+  };
+  const requestHandler = async (event) => {
+    const { handler: cfHandler } = await getCfHandler();
+    return cfHandler.fetch(event.request, event.locals ?? {}, { waitUntil: () => {
+    }, passThroughOnException: () => {
+    } });
+  };
+  return {
+    GET: requestHandler,
+    POST: requestHandler,
+    PUT: requestHandler,
+    DELETE: requestHandler,
+    PATCH: requestHandler,
+    HEAD: requestHandler,
+    OPTIONS: requestHandler
+  };
+}
 var IS_BROWSER = typeof globalThis.document !== "undefined";
 function useRivetQuery(opts) {
   const { client } = useRivet();
