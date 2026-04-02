@@ -1,6 +1,6 @@
 import { Show, For } from "solid-js"
 import { useRivetQuery } from "@blujosi/rivetkit-solid/solidstart"
-import { useActorFromContext, crudTransform } from "@blujosi/rivetkit-solid"
+import { useActorFromContext } from "@blujosi/rivetkit-solid"
 import { useAuth } from "~/lib/auth-context"
 
 interface Todo {
@@ -43,13 +43,12 @@ export default function TodosPage() {
 }
 
 function TodoList(props: { userId: string; token: string }) {
-	const todos = useRivetQuery<Todo[]>({
+	const todos = useRivetQuery<Todo>({
 		actor: "todoList",
 		key: ["user-todos", props.userId],
 		action: "getTodos",
 		event: "todoListUpdate",
 		params: { token: props.token },
-		transform: crudTransform<Todo>({ key: "id" }),
 	})
 
 	const todoActor = useActorFromContext({

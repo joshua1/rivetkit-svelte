@@ -1,5 +1,4 @@
-import { Show, Suspense } from "solid-js"
-import { useRivetQuery } from "@blujosi/rivetkit-solid/solidstart"
+import { Show } from "solid-js"
 import { useActorFromContext } from "@blujosi/rivetkit-solid"
 import { useAuth } from "~/lib/auth-context"
 
@@ -8,11 +7,10 @@ export default function SSRPage() {
 
 	return (
 		<div>
-			<h2>SSR + Live Counter Demo</h2>
+			<h2>Live Counter Demo</h2>
 			<p>
 				<em>
-					Initial data loaded via createResource, then upgraded to live
-					subscriptions.
+					Uses useActionQuery for automatic refetch on events.
 				</em>
 			</p>
 
@@ -30,36 +28,29 @@ export default function SSRPage() {
 				<p>
 					Signed in as <strong>{user()!.email}</strong>
 				</p>
-				<SSRCounter userId={user()!.id} token={token()!} />
+				<CounterDemo userId={user()!.id} token={token()!} />
 			</Show>
 		</div>
 	)
 }
 
-function SSRCounter(props: { userId: string; token: string }) {
-	// useRivetQuery uses createResource for SSR + auto-upgrades to live WS
-	// Token comes from middleware event.locals — no client-side /api/token fetch needed
-	const count = useRivetQuery<number>({
-		actor: "counter",
-		key: ["user-counter", props.userId],
-		action: "getCount",
-		event: "newCount",
-		params: { token: props.token },
-	})
-
-	const countDouble = useRivetQuery<number>({
-		actor: "counter",
-		key: ["user-counter", props.userId],
-		action: "getCountDouble",
-		event: "newDoubleCount",
-		params: { token: props.token },
-	})
-
-	// Separate actor connection for calling mutations
+function CounterDemo(props: { userId: string; token: string }) {
 	const counterActor = useActorFromContext({
 		name: "counter",
 		key: ["user-counter", props.userId],
 		params: { token: props.token },
+	})
+
+	const count = counterActor?.useActionQuery({
+		action: "getCount",
+		event: "newCount",
+		initialValue: 0,
+	})
+
+	const countDouble = counterActor?.useActionQuery({
+		action: "getCountDouble",
+		event: "newDoubleCount",
+		initialValue: 0,
 	})
 
 	const increment = async () => {
@@ -73,17 +64,17 @@ function SSRCounter(props: { userId: string; token: string }) {
 	}
 
 	return (
-		<Suspense fallback={<p>Loading counter...</p>}>
+		<Show when={!count?.isLoading} fallback={<p>Loading counter...</p>}>
 			<div>
-				<h1>Counter: {count.data()}</h1>
+				<h1>Counter: {count?.value}</h1>
 				<button type="button" onClick={increment}>Increment</button>
 				<button type="button" onClick={reset}>Reset</button>
 
-				<h1>Counter 2: {countDouble.data()}</h1>
+				<h1>Counter 2: {countDouble?.value}</h1>
 				<button type="button" onClick={doubleCountClick}>
 					Double Count
 				</button>
 			</div>
-		</Suspense>
+		</Show>
 	)
 }

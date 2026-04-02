@@ -2,7 +2,8 @@
  * Generic CRUD transform factories for use with `useQuery` and `rivetLoad`.
  *
  * These produce `transform` functions that handle incoming create/update/delete
- * events against a list of items, keyed by an identifier field.
+ * events against a collection of items (`T[]`), keyed by an identifier field.
+ * `T` is always the **item** type; the state is always `T[]`.
  *
  * @example
  * ```ts
@@ -39,15 +40,25 @@ export interface CrudTransformOptions<T> {
 	 * Property name (or accessor) used to uniquely identify items.
 	 * Defaults to `"id"`.
 	 */
-	key?: keyof T | ((item: T) => unknown)
+	key?: keyof T | ((item: T) => string) | string | number
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function getKey<T>(item: T, key: keyof T | ((item: T) => unknown)): unknown {
-	return typeof key === "function" ? key(item) : item[key]
+function getKey<T>(item: T, key: keyof T | ((item: T) => unknown) | string | number): unknown {
+	if (typeof key === "function") {
+		return key(item)
+	} else if (typeof key === "string" || typeof key === "number") {
+		return (item as any)[key]
+	} else {
+		return item[key]
+	}
+}
+
+function resolveId<T>(item: T, key?: keyof T | ((item: T) => string) | string | number): unknown {
+	return key != null ? getKey(item, key) : (item as any).id
 }
 
 // ---------------------------------------------------------------------------
@@ -56,66 +67,54 @@ function getKey<T>(item: T, key: keyof T | ((item: T) => unknown)): unknown {
 
 /**
  * Transform for a **create** event.
- * - **Array:** appends the incoming item; duplicates (same key) are ignored.
- * - **Single item:** replaces the current value with the incoming item.
+ * Appends the incoming item to the collection; duplicates (same key) are ignored.
  */
 export function createTransform<T>(
 	opts: CrudTransformOptions<T> = {},
-): <C extends T[] | T>(current: C, incoming: unknown) => C {
-	const keyProp = opts.key ?? ("id" as keyof T)
-	return ((current: T[] | T, incoming: unknown): T[] | T => {
-		const item = incoming as T
-		if (Array.isArray(current)) {
-			const id = getKey(item, keyProp)
-			if (current.some((c) => getKey(c, keyProp) === id)) return current
-			return [...current, item]
-		}
-		return item
-	}) as <C extends T[] | T>(current: C, incoming: unknown) => C
+): (current: T[], incoming: CrudEvent<T>) => T[] {
+	const keyProp = opts.key
+	return (current: T[], incoming: CrudEvent<T>): T[] => {
+		const item = incoming.data
+		const id = resolveId(item, keyProp)
+		if (current.some((c) => resolveId(c, keyProp) === id)) return current
+		return [...current, item]
+	}
 }
 
 /**
  * Transform for an **update** event.
- * - **Array:** replaces the matching item in-place; returns unchanged if no match.
- * - **Single item:** replaces the current value with the incoming item.
+ * Replaces the matching item in the collection; returns unchanged if no match.
  */
 export function updateTransform<T>(
 	opts: CrudTransformOptions<T> = {},
-): <C extends T[] | T>(current: C, incoming: unknown) => C {
-	const keyProp = opts.key ?? ("id" as keyof T)
-	return ((current: T[] | T, incoming: unknown): T[] | T => {
-		const item = incoming as T
-		if (Array.isArray(current)) {
-			const id = getKey(item, keyProp)
-			const idx = current.findIndex((c) => getKey(c, keyProp) === id)
-			if (idx === -1) return current
-			const next = [...current]
-			next[idx] = item
-			return next
-		}
-		return item
-	}) as <C extends T[] | T>(current: C, incoming: unknown) => C
+): (current: T[], incoming: CrudEvent<T>) => T[] {
+	const keyProp = opts.key
+	return (current: T[], incoming: CrudEvent<T>): T[] => {
+		const item = incoming.data
+		const id = resolveId(item, keyProp)
+		const idx = current.findIndex((c) => resolveId(c, keyProp) === id)
+		if (idx === -1) return current
+		const next = [...current]
+		next[idx] = item
+		return next
+	}
 }
 
 /**
  * Transform for a **delete** event.
- * - **Array:** removes the matching item. `incoming` can be the full item or just the key value.
- * - **Single item:** returns the current value unchanged (cannot delete a scalar).
+ * Removes the matching item from the collection. `incoming.data` can be the full item or just the key value.
  */
 export function deleteTransform<T>(
 	opts: CrudTransformOptions<T> = {},
-): <C extends T[] | T>(current: C, incoming: unknown) => C {
-	const keyProp = opts.key ?? ("id" as keyof T)
-	return ((current: T[] | T, incoming: unknown): T[] | T => {
-		if (Array.isArray(current)) {
-			const id =
-				typeof incoming === "object" && incoming !== null
-					? getKey(incoming as T, keyProp)
-					: incoming
-			return current.filter((c) => getKey(c, keyProp) !== id)
-		}
-		return current
-	}) as <C extends T[] | T>(current: C, incoming: unknown) => C
+): (current: T[], incoming: CrudEvent<T>) => T[] {
+	const keyProp = opts.key
+	return (current: T[], incoming: CrudEvent<T>): T[] => {
+		const id =
+			typeof incoming.data === "object" && incoming.data !== null
+				? resolveId(incoming.data as T, keyProp)
+				: incoming.data
+		return current.filter((c) => resolveId(c, keyProp) !== id)
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -139,7 +138,7 @@ export function deleteTransform<T>(
  *
  * @example
  * ```ts
- * const users = todoActor?.useQuery({
+ * const users = todoActor?.useQuery<User>({
  *   action: "getUsers",
  *   event: "userListUpdate",
  *   initialValue: [],
@@ -149,21 +148,21 @@ export function deleteTransform<T>(
  */
 export function crudTransform<T>(
 	opts: CrudTransformOptions<T> = {},
-): <C extends T[] | T>(current: C, incoming: CrudEvent<T>) => C {
+): (current: T[], incoming: CrudEvent<T>) => T[] {
 	const create = createTransform<T>(opts)
 	const update = updateTransform<T>(opts)
 	const del = deleteTransform<T>(opts)
 
-	return ((current: T[] | T, incoming: CrudEvent<T>): T[] | T => {
+	return (current: T[], incoming: CrudEvent<T>): T[] => {
 		switch (incoming.type) {
 			case "created":
-				return create(current, incoming.data)
+				return create(current, incoming)
 			case "updated":
-				return update(current, incoming.data)
+				return update(current, incoming)
 			case "deleted":
-				return del(current, incoming.data)
+				return del(current, incoming)
 			default:
 				return current
 		}
-	}) as <C extends T[] | T>(current: C, incoming: CrudEvent<T>) => C
+	}
 }

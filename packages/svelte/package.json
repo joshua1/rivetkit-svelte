@@ -1,6 +1,6 @@
 {
 	"name": "@blujosi/rivetkit-svelte",
-	"version": "2.3.7",
+	"version": "2.3.11",
 	"scripts": {
 		"build": "vite build && npm run prepack",
 		"preview": "vite preview",

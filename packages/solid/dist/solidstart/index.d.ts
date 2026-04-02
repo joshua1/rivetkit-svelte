@@ -2,6 +2,7 @@ import { Registry } from 'rivetkit';
 import { AnyActorRegistry } from '@rivetkit/framework-base';
 import { Client } from 'rivetkit/client';
 import { Accessor } from 'solid-js';
+import { C as CrudEvent } from '../crud-transforms-BmSOkyC0.js';
 
 interface RivetKitHandlerOpts {
     registry: Registry<any>;
@@ -79,10 +80,10 @@ declare const createRivetKitHandler: (opts?: RivetKitHandlerOpts) => {
  * within the component ownership tree, ensuring proper disposal and cleanup.
  */
 
-/** Reactive query result returned by useRivetQuery. */
-interface RivetQueryResult<T = unknown> {
-    /** The current value. On SSR this is the server-fetched value; on client it upgrades to live. */
-    readonly data: Accessor<T | undefined>;
+/** Reactive query result returned by useRivetQuery. `T` is the item type; data is always `T[]`. */
+interface RivetQueryResult<T> {
+    /** The current collection. On SSR this is the server-fetched value; on client it upgrades to live. */
+    readonly data: Accessor<T[] | undefined>;
     /** Whether the initial data is being loaded. */
     readonly isLoading: Accessor<boolean>;
     /** Any error from the action call or connection. */
@@ -92,7 +93,7 @@ interface RivetQueryResult<T = unknown> {
     /** Manually refetch the action value. */
     readonly refetch: () => void;
 }
-interface RivetQueryOptions<T = unknown> {
+interface RivetQueryOptions<T> {
     /** Actor name from the registry (e.g. 'counter'). */
     actor: string;
     /** Unique key for the actor instance. */
@@ -109,8 +110,8 @@ interface RivetQueryOptions<T = unknown> {
     createInRegion?: string;
     /** Optional input data for actor creation. */
     createWithInput?: unknown;
-    /** Transform incoming event data into the new value. Default: full replacement. */
-    transform?: (current: T, incoming: unknown) => T;
+    /** Transform incoming event data into the new collection. Default: `crudTransform<T>()`. */
+    transform?: (current: T[], incoming: CrudEvent<T>) => T[];
 }
 /**
  * Fetch actor data with SSR support and automatic live upgrade.
@@ -121,18 +122,18 @@ interface RivetQueryOptions<T = unknown> {
  *
  * ```tsx
  * function SSRPage() {
- *   const count = useRivetQuery<number>({
- *     actor: "counter",
- *     key: ["test-counter"],
- *     action: "getCount",
- *     event: "newCount",
+ *   const count = useRivetQuery<Todo>({
+ *     actor: "todoList",
+ *     key: ["test-todos"],
+ *     action: "getTodos",
+ *     event: "todoListUpdate",
  *   });
  *
- *   return <h1>Counter: {count.data()}</h1>;
+ *   return <For each={count.data() ?? []}>{(todo) => <p>{todo.title}</p>}</For>;
  * }
  * ```
  */
-declare function useRivetQuery<T = unknown>(opts: RivetQueryOptions<T>): RivetQueryResult<T>;
+declare function useRivetQuery<T>(opts: RivetQueryOptions<T>): RivetQueryResult<T>;
 /**
  * Fetch actor data with SSR support using an explicit client reference.
  *
@@ -142,11 +143,11 @@ declare function useRivetQuery<T = unknown>(opts: RivetQueryOptions<T>): RivetQu
  *
  * Must still be called inside a component (for signal ownership).
  */
-declare function createRivetQuery<T = unknown>(client: Client<any>, opts: RivetQueryOptions<T>): RivetQueryResult<T>;
+declare function createRivetQuery<T>(client: Client<any>, opts: RivetQueryOptions<T>): RivetQueryResult<T>;
 /** @deprecated Use `RivetQueryOptions` instead. */
-type RivetLoadOptions<T = unknown> = RivetQueryOptions<T>;
+type RivetLoadOptions<T> = RivetQueryOptions<T>;
 /** @deprecated Use `useRivetQuery` or `createRivetQuery` instead. */
-declare function rivetLoad<T = unknown, Registry extends AnyActorRegistry = AnyActorRegistry>(client: Client<Registry>, opts: RivetQueryOptions<T>): Promise<RivetQueryResult<T>>;
+declare function rivetLoad<T, Registry extends AnyActorRegistry = AnyActorRegistry>(client: Client<Registry>, opts: RivetQueryOptions<T>): Promise<RivetQueryResult<T>>;
 /** @deprecated No longer needed with the Provider-based approach. */
 declare class RivetLoadResult<T = unknown> {
     readonly actorName: string;
@@ -164,6 +165,6 @@ declare class RivetLoadResult<T = unknown> {
 /** @deprecated No longer needed with the Provider-based approach. */
 declare function encodeRivetLoad(value: unknown): false | Record<string, unknown>;
 /** @deprecated No longer needed with the Provider-based approach. */
-declare function decodeRivetLoad<Registry extends AnyActorRegistry>(encoded: Record<string, any>, client: Client<Registry>, transform?: (current: unknown, incoming: unknown) => unknown): RivetQueryResult<unknown>;
+declare function decodeRivetLoad<Registry extends AnyActorRegistry>(encoded: Record<string, any>, client: Client<Registry>, transform?: (current: unknown[], incoming: CrudEvent<unknown>) => unknown[]): RivetQueryResult<unknown>;
 
 export { type RivetKitHandlerOpts, type RivetLoadOptions, RivetLoadResult, type RivetQueryOptions, type RivetQueryResult, createRivetKitHandler, createRivetQuery, decodeRivetLoad, encodeRivetLoad, rivetLoad, useRivetQuery };

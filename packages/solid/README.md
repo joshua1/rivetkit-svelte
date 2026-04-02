@@ -216,58 +216,63 @@ export default function Home() {
 
 ### 5. SSR with Live Upgrade
 
-Use `useRivetQuery` to fetch actor data server-side and automatically upgrade to live WebSocket subscriptions on the client:
+Use `useRivetQuery` to fetch actor collections server-side and automatically upgrade to live WebSocket subscriptions on the client. `T` is the **item** type; data is always `T[]`:
 
 ```tsx
-// src/routes/ssr.tsx
-import { Suspense } from "solid-js";
+// src/routes/todos.tsx
 import { useRivetQuery } from "@blujosi/rivetkit-solid/solidstart";
 import { useActorFromContext } from "@blujosi/rivetkit-solid";
+import { Show, For } from "solid-js";
 
-export default function SSRPage() {
-  // SSR queries — data fetched server-side, auto-upgraded to live on client
-  const count = useRivetQuery<number>({
-    actor: "counter",
-    key: ["test-counter"],
-    action: "getCount",
-    event: "newCount",
-  });
+interface Todo { id: string; title: string; done: boolean }
 
-  const countDouble = useRivetQuery<number>({
-    actor: "counter",
-    key: ["test-counter"],
-    action: "getCountDouble",
-    event: "newDoubleCount",
+export default function TodosPage() {
+  // SSR query — T is the item type, data() returns Todo[]
+  const todos = useRivetQuery<Todo>({
+    actor: "todoList",
+    key: ["my-list"],
+    action: "getTodos",
+    event: "todoListUpdate",
   });
 
   // Actor connection for calling mutations
-  const counterActor = useActorFromContext({
-    name: "counter",
-    key: ["test-counter"],
+  const todoActor = useActorFromContext({
+    name: "todoList",
+    key: ["my-list"],
   });
 
-  const increment = async () => {
-    await counterActor?.current?.connection?.increment(1);
-  };
-  const reset = async () => {
-    await counterActor?.current?.connection?.reset();
+  const addTodo = async (title: string) => {
+    await todoActor?.current?.connection?.addTodo(title);
   };
 
   return (
     <div>
-      <h2>SSR + Live Counter Demo</h2>
-      <Suspense fallback={<p>Loading...</p>}>
-        <div>
-          <h1>Counter: {count.data()}</h1>
-          <button onClick={increment}>Increment</button>
-          <button onClick={reset}>Reset</button>
-
-          <h1>Counter 2: {countDouble.data()}</h1>
-        </div>
-      </Suspense>
+      <h2>Todos</h2>
+      <Show when={!todos.isLoading()} fallback={<p>Loading...</p>}>
+        <For each={todos.data() ?? []}>
+          {(todo) => <p>{todo.title}</p>}
+        </For>
+      </Show>
     </div>
   );
 }
+```
+
+For simple scalar values (counters etc.), use `useActorFromContext` + `useActionQuery` instead:
+
+```tsx
+const counterActor = useActorFromContext({
+  name: "counter",
+  key: ["test-counter"],
+});
+
+const count = counterActor?.useActionQuery({
+  action: "getCount",
+  event: "newCount",
+  initialValue: 0,
+});
+
+// count?.value is a number
 ```
 
 **How SSR → Live works:**
@@ -501,8 +506,8 @@ c.broadcast("taskChanged", { type: "deleted", data: deletedTask });
 // In the component:
 interface Task { id: string; title: string; done: boolean }
 
-// With useRivetQuery (SSR + live)
-const tasks = useRivetQuery<Task[]>({
+// With useRivetQuery (SSR + live) — T is the item type, data() returns Task[]
+const tasks = useRivetQuery<Task>({
   actor: "taskList",
   key: ["my-list"],
   action: "getTasks",
@@ -510,11 +515,11 @@ const tasks = useRivetQuery<Task[]>({
   transform: crudTransform<Task>({ key: "id" }),
 });
 
-// With useQuery (client-side)
+// With useQuery (client-side) — T is the full state type
 const tasks = actor?.useQuery({
   action: "getTasks",
   event: "taskChanged",
-  initialValue: [],
+  initialValue: [] as Task[],
   transform: crudTransform<Task>({ key: "id" }),
 });
 ```
@@ -587,7 +592,7 @@ c.broadcast("taskDeleted", task);
 For items keyed by something other than a single property:
 
 ```typescript
-const items = useRivetQuery<Item[]>({
+const items = useRivetQuery<Item>({
   actor: "items",
   key: ["all"],
   action: "getItems",
@@ -622,24 +627,26 @@ export const { GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS } =
 
 #### `useRivetQuery<T>(options)` *(recommended)*
 
-Fetches actor data with SSR support and automatic live upgrade. Uses `createResource` for SSR serialization and `createEffect` + `onCleanup` for live WebSocket upgrade. Must be called inside a component wrapped in `<RivetProvider>`.
+Fetches actor collection data with SSR support and automatic live upgrade. `T` is the **item** type — `data()` returns `T[]`. Uses `createResource` for SSR serialization and `createEffect` + `onCleanup` for live WebSocket upgrade. Must be called inside a component wrapped in `<RivetProvider>`.
+
+Defaults to `crudTransform<T>()` when no `transform` is provided.
 
 ```tsx
 import { useRivetQuery } from "@blujosi/rivetkit-solid/solidstart";
 
-const count = useRivetQuery<number>({
-  actor: "counter",
-  key: ["test-counter"],
-  action: "getCount",
-  event: "newCount",
+const todos = useRivetQuery<Todo>({
+  actor: "todoList",
+  key: ["my-list"],
+  action: "getTodos",
+  event: "todoListUpdate",
 });
 
 // Access values via signal accessors
-count.data()         // number | undefined
-count.isLoading()    // boolean
-count.error()        // Error | undefined
-count.isConnected()  // boolean
-count.refetch()      // manually re-fetch
+todos.data()         // Todo[] | undefined
+todos.isLoading()    // boolean
+todos.error()        // Error | undefined
+todos.isConnected()  // boolean
+todos.refetch()      // manually re-fetch
 ```
 
 #### `createRivetQuery<T>(client, options)`
@@ -649,11 +656,11 @@ Same as `useRivetQuery` but takes an explicit client — doesn't require `<Rivet
 ```tsx
 import { createRivetQuery } from "@blujosi/rivetkit-solid/solidstart";
 
-const count = createRivetQuery<number>(myClient, {
-  actor: "counter",
-  key: ["test-counter"],
-  action: "getCount",
-  event: "newCount",
+const todos = createRivetQuery<Todo>(myClient, {
+  actor: "todoList",
+  key: ["my-list"],
+  action: "getTodos",
+  event: "todoListUpdate",
 });
 ```
 
@@ -663,19 +670,19 @@ const count = createRivetQuery<number>(myClient, {
 |---|---|---|
 | `actor` | `string` | Actor name from the registry |
 | `key` | `string \| string[]` | Unique key for the actor instance |
-| `action` | `string` | Action name to call for the initial value |
+| `action` | `string` | Action name to call for the initial collection |
 | `args` | `unknown[]?` | Arguments to pass to the action |
 | `event` | `string \| string[]` | Event name(s) to subscribe to for live updates |
 | `params` | `Record<string, string>?` | Connection params (e.g. auth tokens) |
 | `createInRegion` | `string?` | Region to create the actor in |
 | `createWithInput` | `unknown?` | Input data for actor creation |
-| `transform` | `(current: T, incoming: unknown) => T?` | Custom transform for incoming event data |
+| `transform` | `(current: T[], incoming: CrudEvent<T>) => T[]?` | Custom transform. Default: `crudTransform<T>()` |
 
 **`RivetQueryResult<T>` — return type:**
 
 | Accessor | Type | Description |
 |---|---|---|
-| `data()` | `T \| undefined` | The current value (live data preferred over initial fetch) |
+| `data()` | `T[] \| undefined` | The current collection (live data preferred over initial fetch) |
 | `isLoading()` | `boolean` | Whether the initial resource is loading |
 | `error()` | `Error \| undefined` | Any error from fetch or WebSocket |
 | `isConnected()` | `boolean` | Whether the live WebSocket is connected |
@@ -695,12 +702,12 @@ const actor = useActorFromContext({
   params: { token: "user-auth-token" },
 });
 
-// SSR via useRivetQuery
-const count = useRivetQuery<number>({
-  actor: "counter",
-  key: ["test-counter"],
-  action: "getCount",
-  event: "newCount",
+// SSR via useRivetQuery — T is the item type
+const todos = useRivetQuery<Todo>({
+  actor: "todoList",
+  key: ["my-list"],
+  action: "getTodos",
+  event: "todoListUpdate",
   params: { token: "user-auth-token" },
 });
 ```

@@ -92,10 +92,7 @@ export function createRivetKitWithClient<Registry extends AnyActorRegistry>(
 	client: Client<Registry>,
 	opts: CreateRivetKitOptions<Registry> = {},
 ) {
-	const { getOrCreateActor } = createVanillaRivetKit<
-		Registry,
-		ExtractActorsFromRegistry<Registry>
-	>(client, opts)
+	const { getOrCreateActor } = createVanillaRivetKit<Registry>(client, opts)
 
 	/**
 	 * Svelte 5 rune-based function to connect to an actor and retrieve its state.
@@ -106,7 +103,7 @@ export function createRivetKitWithClient<Registry extends AnyActorRegistry>(
 	 * @returns An object containing reactive state and event listener function.
 	 */
 	function useActor<
-		ActorName extends keyof ExtractActorsFromRegistry<Registry>,
+		ActorName extends keyof ExtractActorsFromRegistry<Registry> & string,
 	>(opts: ActorOptions<Registry, ActorName>) {
 		const { mount, state } = getOrCreateActor<ActorName>(opts)
 

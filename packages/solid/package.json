@@ -1,6 +1,6 @@
 {
 	"name": "@blujosi/rivetkit-solid",
-	"version": "2.3.7",
+	"version": "2.3.11",
 	"type": "module",
 	"scripts": {
 		"build": "tsup",

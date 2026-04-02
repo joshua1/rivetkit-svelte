@@ -139,3 +139,9 @@ zztemp
 
 .svelte-ignore
 .turbo
+
+
+#Ignore vscode AI rules
+.github/instructions/codacy.instructions.md
+packages/solid/dist
+packages/solid

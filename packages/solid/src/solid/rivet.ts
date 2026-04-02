@@ -57,8 +57,7 @@ export function createRivetKitWithClient<Registry extends AnyActorRegistry>(
 	opts: CreateRivetKitOptions<Registry> = {},
 ) {
 	const { getOrCreateActor } = createVanillaRivetKit<
-		Registry,
-		ExtractActorsFromRegistry<Registry>
+		Registry
 	>(client, opts)
 
 	/**
@@ -66,7 +65,7 @@ export function createRivetKitWithClient<Registry extends AnyActorRegistry>(
 	 * Uses fine-grained reactivity via createSignal/createEffect.
 	 */
 	function useActor<
-		ActorName extends keyof ExtractActorsFromRegistry<Registry>,
+		ActorName extends keyof ExtractActorsFromRegistry<Registry> & string,
 	>(opts: ActorOptions<Registry, ActorName>) {
 		const { mount, state } = getOrCreateActor<ActorName>(opts)
 
@@ -335,7 +334,7 @@ export function createRivetKitWithClient<Registry extends AnyActorRegistry>(
  */
 export function useActorFromContext<
 	Registry extends AnyActorRegistry = AnyActorRegistry,
-	ActorName extends keyof ExtractActorsFromRegistry<Registry> = keyof ExtractActorsFromRegistry<Registry>,
+	ActorName extends keyof ExtractActorsFromRegistry<Registry> & string = keyof ExtractActorsFromRegistry<Registry> & string,
 >(opts: ActorOptions<Registry, ActorName>) {
 	const { client } = useRivet<Registry>()
 	const { useActor } = createRivetKitWithClient<Registry>(client)

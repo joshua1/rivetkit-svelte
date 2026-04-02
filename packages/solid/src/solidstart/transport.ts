@@ -18,6 +18,8 @@ import {
 	createSignal,
 	onCleanup,
 } from "solid-js"
+import type { CrudEvent } from "../solid"
+import { crudTransform } from "../solid"
 import { useRivet } from "../solid/context"
 
 const IS_BROWSER = typeof globalThis.document !== "undefined"
@@ -26,10 +28,10 @@ const IS_BROWSER = typeof globalThis.document !== "undefined"
 // RivetQueryResult — the reactive return type
 // ============================================================================
 
-/** Reactive query result returned by useRivetQuery. */
-export interface RivetQueryResult<T = unknown> {
-	/** The current value. On SSR this is the server-fetched value; on client it upgrades to live. */
-	readonly data: Accessor<T | undefined>
+/** Reactive query result returned by useRivetQuery. `T` is the item type; data is always `T[]`. */
+export interface RivetQueryResult<T> {
+	/** The current collection. On SSR this is the server-fetched value; on client it upgrades to live. */
+	readonly data: Accessor<T[] | undefined>
 	/** Whether the initial data is being loaded. */
 	readonly isLoading: Accessor<boolean>
 	/** Any error from the action call or connection. */
@@ -44,7 +46,7 @@ export interface RivetQueryResult<T = unknown> {
 // RivetQueryOptions — what the user passes to useRivetQuery
 // ============================================================================
 
-export interface RivetQueryOptions<T = unknown> {
+export interface RivetQueryOptions<T> {
 	/** Actor name from the registry (e.g. 'counter'). */
 	actor: string
 	/** Unique key for the actor instance. */
@@ -61,8 +63,8 @@ export interface RivetQueryOptions<T = unknown> {
 	createInRegion?: string
 	/** Optional input data for actor creation. */
 	createWithInput?: unknown
-	/** Transform incoming event data into the new value. Default: full replacement. */
-	transform?: (current: T, incoming: unknown) => T
+	/** Transform incoming event data into the new collection. Default: `crudTransform<T>()`. */
+	transform?: (current: T[], incoming: CrudEvent<T>) => T[]
 }
 
 // ============================================================================
@@ -78,18 +80,18 @@ export interface RivetQueryOptions<T = unknown> {
  *
  * ```tsx
  * function SSRPage() {
- *   const count = useRivetQuery<number>({
- *     actor: "counter",
- *     key: ["test-counter"],
- *     action: "getCount",
- *     event: "newCount",
+ *   const count = useRivetQuery<Todo>({
+ *     actor: "todoList",
+ *     key: ["test-todos"],
+ *     action: "getTodos",
+ *     event: "todoListUpdate",
  *   });
  *
- *   return <h1>Counter: {count.data()}</h1>;
+ *   return <For each={count.data() ?? []}>{(todo) => <p>{todo.title}</p>}</For>;
  * }
  * ```
  */
-export function useRivetQuery<T = unknown>(
+export function useRivetQuery<T>(
 	opts: RivetQueryOptions<T>,
 ): RivetQueryResult<T> {
 	const { client } = useRivet()
@@ -105,7 +107,7 @@ export function useRivetQuery<T = unknown>(
  *
  * Must still be called inside a component (for signal ownership).
  */
-export function createRivetQuery<T = unknown>(
+export function createRivetQuery<T>(
 	client: Client<any>,
 	opts: RivetQueryOptions<T>,
 ): RivetQueryResult<T> {
@@ -118,23 +120,23 @@ export function createRivetQuery<T = unknown>(
 		createInRegion,
 		createWithInput,
 		event,
-		transform = (_current: T, incoming: unknown) => incoming as T,
+		transform = crudTransform<T>(),
 	} = opts
 
 	const normalizedKey = Array.isArray(key) ? key : [key]
 
 	// -- createResource handles SSR serialization automatically --
-	const [resource, { refetch }] = createResource<T>(async () => {
+	const [resource, { refetch }] = createResource<T[]>(async () => {
 		const handle = client.getOrCreate(actorName, normalizedKey, {
 			params,
 			createInRegion,
 			createWithInput,
 		})
-		return handle.action<unknown[], T>({ name: action, args })
+		return handle.action<unknown[], T[]>({ name: action, args })
 	})
 
 	// -- Live data signal: starts with resource value, upgraded by events --
-	const [liveData, setLiveData] = createSignal<T | undefined>(undefined)
+	const [liveData, setLiveData] = createSignal<T[] | undefined>(undefined)
 	const [isConnected, setIsConnected] = createSignal(false)
 	const [liveError, setLiveError] = createSignal<Error | undefined>(undefined)
 
@@ -168,7 +170,7 @@ export function createRivetQuery<T = unknown>(
 				const unsub = conn.on(evt, (...eventArgs: unknown[]) => {
 					const incoming = eventArgs.length === 1 ? eventArgs[0] : eventArgs
 					setLiveData((prev) =>
-						transform((prev ?? initialValue) as T, incoming),
+						transform((prev ?? initialValue) as T[], incoming as CrudEvent<T>),
 					)
 					setLiveError(undefined)
 				})
@@ -184,7 +186,7 @@ export function createRivetQuery<T = unknown>(
 	}
 
 	// -- Compose the result: prefer live data once available --
-	const data: Accessor<T | undefined> = () => {
+	const data: Accessor<T[] | undefined> = () => {
 		const live = liveData()
 		if (live !== undefined) return live
 		return resource()
@@ -207,11 +209,11 @@ export function createRivetQuery<T = unknown>(
 // ============================================================================
 
 /** @deprecated Use `RivetQueryOptions` instead. */
-export type RivetLoadOptions<T = unknown> = RivetQueryOptions<T>
+export type RivetLoadOptions<T> = RivetQueryOptions<T>
 
 /** @deprecated Use `useRivetQuery` or `createRivetQuery` instead. */
 export async function rivetLoad<
-	T = unknown,
+	T,
 	Registry extends AnyActorRegistry = AnyActorRegistry,
 >(
 	client: Client<Registry>,
@@ -226,7 +228,7 @@ export async function rivetLoad<
 		params,
 		createInRegion,
 		createWithInput,
-		transform = (_current: T, incoming: unknown) => incoming as T,
+		transform = crudTransform<T>(),
 	} = opts
 
 	const normalizedKey = Array.isArray(key) ? key : [key]
@@ -237,7 +239,7 @@ export async function rivetLoad<
 		createWithInput,
 	})
 
-	const initialData = await handle.action<unknown[], T>({
+	const initialData = await handle.action<unknown[], T[]>({
 		name: action,
 		args,
 	})
@@ -249,8 +251,8 @@ export async function rivetLoad<
 	return createStaticResult<T>(initialData)
 }
 
-function createStaticResult<T>(initialData: T): RivetQueryResult<T> {
-	const [data] = createSignal<T | undefined>(initialData)
+function createStaticResult<T>(initialData: T[]): RivetQueryResult<T> {
+	const [data] = createSignal<T[] | undefined>(initialData)
 	const [isLoading] = createSignal(false)
 	const [error] = createSignal<Error | undefined>(undefined)
 	const [isConnected] = createSignal(false)
@@ -260,8 +262,8 @@ function createStaticResult<T>(initialData: T): RivetQueryResult<T> {
 function createLegacyLiveQuery<T>(
 	client: Client<any>,
 	opts: RivetQueryOptions<T>,
-	initialData: T,
-	transform: (current: T, incoming: unknown) => T,
+	initialData: T[],
+	transform: (current: T[], incoming: CrudEvent<T>) => T[],
 ): RivetQueryResult<T> {
 	const {
 		actor: actorName,
@@ -272,7 +274,7 @@ function createLegacyLiveQuery<T>(
 		createWithInput,
 	} = opts
 
-	const [data, setData] = createSignal<T | undefined>(initialData)
+	const [data, setData] = createSignal<T[] | undefined>(initialData)
 	const [isLoading] = createSignal(false)
 	const [error, setError] = createSignal<Error | undefined>(undefined)
 	const [isConnected, setIsConnected] = createSignal(false)
@@ -297,7 +299,7 @@ function createLegacyLiveQuery<T>(
 	for (const evt of events) {
 		conn.on(evt, (...args: unknown[]) => {
 			const incoming = args.length === 1 ? args[0] : args
-			setData(() => transform(data() as T, incoming))
+			setData(() => transform(data() as T[], incoming as CrudEvent<T>))
 			setError(undefined)
 		})
 	}
@@ -350,7 +352,7 @@ export function encodeRivetLoad(
 export function decodeRivetLoad<Registry extends AnyActorRegistry>(
 	encoded: Record<string, any>,
 	client: Client<Registry>,
-	transform?: (current: unknown, incoming: unknown) => unknown,
+	transform?: (current: unknown[], incoming: CrudEvent<unknown>) => unknown[],
 ): RivetQueryResult<unknown> {
 	return createLegacyLiveQuery(
 		client,
@@ -366,6 +368,6 @@ export function decodeRivetLoad<Registry extends AnyActorRegistry>(
 			transform,
 		},
 		encoded.data,
-		transform ?? ((_c: unknown, incoming: unknown) => incoming),
+		transform ?? crudTransform(),
 	)
 }

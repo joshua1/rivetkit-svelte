@@ -315,7 +315,7 @@ const count = counterActor?.useQuery({
 | `args` | `any[]?` | Optional arguments passed to the action |
 | `event` | `string` | The event name to subscribe to for real-time updates |
 | `initialValue` | `T` | The value to use before the action resolves |
-| `transform` | `(current: T, incoming: any) => T?` | Optional function to merge incoming event data with the current value |
+| `transform` | `(current: T, incoming: any) => T?` | Optional function to merge incoming event data with the current value. For CRUD lists, use `crudTransform<T>()` |
 
 **Default transform behavior:**
 - **Plain objects** — shallow merge: `{ ...current, ...incoming }`
@@ -533,8 +533,8 @@ c.broadcast("taskChanged", { type: "deleted", data: deletedTask });
 
   interface Task { id: string; title: string; done: boolean }
 
-  // With useQuery (client-side)
-  const tasks = actor?.useQuery({
+  // With useQuery (client-side) — T is the full state type (Task[])
+  const tasks = actor?.useQuery<Task[]>({
     action: "getTasks",
     event: "taskChanged",
     initialValue: [] as Task[],
@@ -544,8 +544,8 @@ c.broadcast("taskChanged", { type: "deleted", data: deletedTask });
 ```
 
 ```typescript
-// With rivetLoad (SSR + live)
-const tasks = await rivetLoad(client, {
+// With rivetLoad (SSR + live) — T is the item type, data returns Task[]
+const tasks = await rivetLoad<Registry, Task>(client, {
   actor: "taskList",
   key: ["my-list"],
   action: "getTasks",
@@ -622,7 +622,7 @@ c.broadcast("taskDeleted", task);
 For items keyed by something other than a single property:
 
 ```typescript
-const items = actor?.useQuery({
+const items = actor?.useQuery<Item[]>({
   action: "getItems",
   event: "itemChanged",
   initialValue: [],
@@ -743,17 +743,22 @@ export const transport = {
 
 #### 2. Use `rivetLoad()` in your load function
 
+`rivetLoad<T>` is designed for **collections** — `T` is the item type and `data` returns `T[]`. The default transform is `crudTransform<T>()`, so standard CRUD events work out of the box.
+
 ```typescript
-// src/routes/+page.ts
+// src/routes/todos/+page.ts
 import { rivetLoad } from "@blujosi/rivetkit-svelte/sveltekit"
 import { rivetClient } from "$lib/actor.client"
+import type { Registry } from "$backend/registry"
+
+interface Todo { id: string; text: string; done: boolean }
 
 export const load = async () => ({
-  count: await rivetLoad(rivetClient, {
-    actor: 'counter',
-    key: ['test-counter'],
-    action: 'getCount',
-    event: 'newCount',
+  todos: await rivetLoad<Registry, Todo>(rivetClient, {
+    actor: 'todoList',
+    key: ['my-list'],
+    action: 'getTodos',
+    event: 'todoChanged',
   })
 })
 ```
@@ -761,19 +766,23 @@ export const load = async () => ({
 #### 3. Use the data in your component
 
 ```svelte
-<!-- src/routes/+page.svelte -->
+<!-- src/routes/todos/+page.svelte -->
 <script lang="ts">
   let { data } = $props()
 
-  // data.count is already a reactive RivetQueryResult
+  // data.todos is already a reactive RivetQueryResult
   // It has SSR data immediately, then upgrades to live updates
-  const count = $derived(data.count.data)
+  const todos = $derived(data.todos.data)
 </script>
 
-{#if data.count.isLoading}
+{#if data.todos.isLoading}
   <p>Loading...</p>
 {:else}
-  <h1>Counter: {count}</h1>
+  <ul>
+    {#each todos ?? [] as todo}
+      <li>{todo.text}</li>
+    {/each}
+  </ul>
 {/if}
 ```
 
@@ -786,15 +795,20 @@ Fetch actor data for use in SvelteKit load functions. Dual-mode:
 - **Server (SSR):** calls the action via stateless HTTP, wraps result for transport
 - **Client (navigation):** calls action for initial data, then creates a live subscription immediately
 
+`rivetLoad<T>` is designed for **collections** — `T` is the item type and `data` returns `T[]`. The default transform is `crudTransform<T>()`, so standard CRUD events work without specifying a transform.
+
 ```typescript
-const result = await rivetLoad(rivetClient, {
-  actor: 'counter',
-  key: ['test-counter'],
-  action: 'getCount',
-  event: 'newCount',
+interface Todo { id: string; text: string; done: boolean }
+
+const result = await rivetLoad<Registry, Todo>(rivetClient, {
+  actor: 'todoList',
+  key: ['my-list'],
+  action: 'getTodos',
+  event: 'todoChanged',
   args: [],                         // optional action arguments
   params: { authToken: 'jwt-...' }, // optional connection params
-  transform: (current, incoming) => incoming, // optional transform
+  // transform defaults to crudTransform<T>() — override if needed:
+  // transform: (current, incoming) => [...current, incoming.data],
 })
 ```
 
@@ -810,13 +824,13 @@ const result = await rivetLoad(rivetClient, {
 | `params` | `Record<string, string>?` | Optional connection parameters |
 | `createInRegion` | `string?` | Region to create the actor in |
 | `createWithInput` | `unknown?` | Input data for actor creation |
-| `transform` | `(current: T, incoming: unknown) => T?` | Transform incoming event data. Default: full replacement |
+| `transform` | `(current: T[], incoming: CrudEvent<T>) => T[]?` | Transform incoming event data. Default: `crudTransform<T>()` |
 
 **Returns:** `RivetQueryResult<T>` — a reactive object with:
 
 | Property | Type | Description |
 |---|---|---|
-| `data` | `T \| undefined` | The current value |
+| `data` | `T[] \| undefined` | The current value (collection of items) |
 | `isLoading` | `boolean` | `true` while loading |
 | `error` | `Error \| undefined` | Error, if any |
 | `isConnected` | `boolean` | Whether the live connection is active |
@@ -838,24 +852,29 @@ export const transport = {
 }
 ```
 
-> **Note:** `decodeRivetLoad` accepts an optional third argument `transform` if you need to customize how event data is applied. By default, incoming event data fully replaces the current value.
+> **Note:** `decodeRivetLoad` accepts an optional third argument `transform` if you need to customize how event data is applied. By default, the transform is `crudTransform<T>()`, which handles `CrudEvent<T>` payloads (`{ type: "created" | "updated" | "deleted", data: T }`).
 
 ### Multiple queries in one load
 
 ```typescript
 // src/routes/+page.ts
+import type { Registry } from "$backend/registry"
+
+interface Todo { id: string; text: string; done: boolean }
+interface Comment { id: string; todoId: string; body: string }
+
 export const load = async () => ({
-  count: await rivetLoad(rivetClient, {
-    actor: 'counter',
-    key: ['test-counter'],
-    action: 'getCount',
-    event: 'newCount',
+  todos: await rivetLoad<Registry, Todo>(rivetClient, {
+    actor: 'todoList',
+    key: ['my-list'],
+    action: 'getTodos',
+    event: 'todoChanged',
   }),
-  countDouble: await rivetLoad(rivetClient, {
-    actor: 'counter',
-    key: ['test-counter'],
-    action: 'getCountDouble',
-    event: 'newDoubleCount',
+  comments: await rivetLoad<Registry, Comment>(rivetClient, {
+    actor: 'todoList',
+    key: ['my-list'],
+    action: 'getComments',
+    event: 'commentChanged',
   }),
 })
 ```
@@ -870,32 +889,26 @@ SSR data gives you read access. For mutations (calling actions that change state
 
   let { data } = $props();
 
-  // Read: SSR data with live updates
-  const count = $derived(data.count.data);
+  // Read: SSR data with live updates (T[] collection)
+  const todos = $derived(data.todos.data);
 
   // Write: useActor for action calls
-  const counterActor = useActor?.({
-    name: "counter",
-    key: ["test-counter"],
+  const todoActor = useActor?.({
+    name: "todoList",
+    key: ["my-list"],
   });
 
-  const increment = async () => {
-    await counterActor?.current?.connection?.increment(1);
+  const addTodo = async () => {
+    await todoActor?.current?.connection?.addTodo({ text: "New task" });
   };
 </script>
 
-<h1>Counter: {count}</h1>
-<button onclick={increment}>Increment</button>
-```
-
----
-
-## Common Pitfalls
-
-### Don't call `useActor` inside `onMount`
-
-`useActor` uses `$effect` runes internally. Runes must be initialized during synchronous component setup, not in deferred callbacks.
-
+<ul>
+  {#each todos ?? [] as todo}
+    <li>{todo.text}</li>
+  {/each}
+</ul>
+<button onclick={addTodo}>Add Todo</button>
 ```typescript
 // BAD
 onMount(() => {

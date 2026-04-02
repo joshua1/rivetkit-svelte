@@ -8,6 +8,8 @@
 
 import type { AnyActorRegistry } from "@rivetkit/framework-base"
 import type { Client } from "rivetkit/client"
+import type { CrudEvent } from "../svelte/crud-transforms"
+import { crudTransform } from "../svelte/crud-transforms"
 
 const IS_BROWSER = typeof globalThis.document !== "undefined"
 
@@ -15,9 +17,9 @@ const IS_BROWSER = typeof globalThis.document !== "undefined"
 // RivetQueryResult — the reactive return type
 // ============================================================================
 
-/** Reactive query result returned by rivetLoad (after decode) and on client nav. */
-export interface RivetQueryResult<T = unknown> {
-	readonly data: T | undefined
+/** Reactive query result returned by rivetLoad (after decode) and on client nav. `T` is the item type; data is always `T[]`. */
+export interface RivetQueryResult<T> {
+	readonly data: T[] | undefined
 	readonly isLoading: boolean
 	readonly error: Error | undefined
 	readonly isConnected: boolean
@@ -27,7 +29,7 @@ export interface RivetQueryResult<T = unknown> {
 // RivetLoadOptions — what the user passes to rivetLoad
 // ============================================================================
 
-export interface RivetLoadOptions<T = unknown> {
+export interface RivetLoadOptions<T> {
 	/** Actor name from the registry (e.g. 'counter'). */
 	actor: string
 	/** Unique key for the actor instance. */
@@ -44,8 +46,8 @@ export interface RivetLoadOptions<T = unknown> {
 	createInRegion?: string
 	/** Optional input data for actor creation. */
 	createWithInput?: unknown
-	/** Transform incoming event data into the new value. Default: full replacement. */
-	transform?: (current: T, incoming: unknown) => T
+	/** Transform incoming event data into the new collection. Default: `crudTransform<T>()`. */
+	transform?: (current: T[], incoming: CrudEvent<T>) => T[]
 }
 
 // ============================================================================
@@ -135,7 +137,7 @@ export async function rivetLoad<Registry extends AnyActorRegistry, T = unknown>(
 	})
 
 	// Call the action by name via ActorHandleRaw.action
-	const data = await handle.action<unknown[], T>({
+	const data = await handle.action<unknown[], T[]>({
 		name: action,
 		args,
 	})
@@ -196,7 +198,7 @@ export function encodeRivetLoad(value: unknown): false | RivetLoadEncoded {
 export function decodeRivetLoad<Registry extends AnyActorRegistry>(
 	encoded: RivetLoadEncoded,
 	client: Client<Registry>,
-	transform?: (current: unknown, incoming: unknown) => unknown,
+	transform?: (current: unknown[], incoming: CrudEvent<unknown>) => unknown[],
 ): RivetQueryResult<unknown> {
 	return createDetachedActorQuery<Registry>(
 		client,
@@ -241,10 +243,10 @@ function createDetachedActorQuery<
 		params,
 		createInRegion,
 		createWithInput,
-		transform = (_current: T, incoming: unknown) => incoming as T,
+		transform = crudTransform<T>(),
 	} = opts
 
-	let data: T | undefined = $state(initialData)
+	let data: T[] | undefined = $state(initialData)
 	let isLoading: boolean = $state(false)
 	let error: Error | undefined = $state(undefined)
 	let isConnected: boolean = $state(false)
@@ -277,7 +279,7 @@ function createDetachedActorQuery<
 	for (const evt of events) {
 		conn.on(evt, (...args: unknown[]) => {
 			const incoming = args.length === 1 ? args[0] : args
-			data = transform(data as T, incoming)
+			data = transform(data as T[], incoming as CrudEvent<T>)
 			isLoading = false
 			error = undefined
 		})
